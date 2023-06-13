@@ -1,67 +1,63 @@
-import { useMemo, useRef, useState } from 'react'
-import * as mm from 'music-metadata-browser'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Container, IconButton, Paper } from '@mui/material'
 import Grid from '@mui/material/Unstable_Grid2'
 import KeyboardArrowDownOutlinedIcon from '@mui/icons-material/KeyboardArrowDownOutlined'
+import * as mm from 'music-metadata-browser'
 import AudioView from './AudioView'
 import PlayerControl from './PlayerControl'
 import useMetaDataListStore from '../../store/useMetaDataListStore'
 import usePlayListStore from '../../store/usePlayListStore'
 import usePlayerStore from '../../store/usePlayerStore'
 import PlayList from '../PlayList'
+import useUiStore from '../../store/useUiStore'
+import { MetaData } from '../../type'
 
 const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<any> }) => {
 
-  const [type, playList, index, total, updateIndex, updateTotal] = usePlayListStore((state) => [
+  const [type, playList, index, updateIndex] = usePlayListStore((state) => [
     state.type,
     state.playList,
     state.index,
-    state.total,
     state.updateIndex,
-    state.updateTotal,
   ])
 
+  const [metaData, setMetaData] = useState<MetaData | null>(null)
   const [metaDataList, insertMetaDataList] = useMetaDataListStore(
     (state) => [
       state.metaDataList,
       state.insertMetaDataList,
-    ]
-  )
+    ])
 
   const [
     url,
     loop,
-    containerIsHiding,
     updatePlaying,
     updateUrl,
-    updateContainerIsHiding,
-  ] = usePlayerStore(
-    (state) => [
-      state.url,
-      state.loop,
-      state.containerIsHiding,
-      state.updatePlaying,
-      state.updateUrl,
-      state.updateContainerIsHiding
-    ]
-  )
+    updateCurrentTime,
+    updateDuration,
+  ] = usePlayerStore((state) => [
+    state.url,
+    state.loop,
+    state.updatePlaying,
+    state.updateUrl,
+    state.updateCurrentTime,
+    state.updateDuration,
+  ])
+
+  const [videoViewIsShow, updateVideoViewIsShow] = useUiStore((state) => [state.videoViewIsShow, state.updateVideoViewIsShow,])
 
   // 声明播放器对象
   const playerRef = useRef<HTMLVideoElement>(null)
+  const player = playerRef.current
 
-  //音频界面是否显示
-  const [audioViewIsDisplay, setAudioViewIsDisplay] = useState(false)
-
-  // 更新播放列表总数
+  // 获取当前播放文件链接并开始播放
   useMemo(() => {
     if (playList !== null) {
-      updateTotal(playList ? playList.length : 0)
-      getFileData(playList[index].path).then((res: any) => {
+      getFileData(playList[index].path).then((res) => {
         console.log('开始播放', playList[index].path)
         updateUrl(res['@microsoft.graph.downloadUrl'])
         updatePlaying(true)
       })
-
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playList, index])
@@ -103,8 +99,58 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
     }
   }, [type, playList, index, url, metaDataList, insertMetaDataList])
 
+  /**
+* 播放开始暂停
+*/
+  const handleClickPlayPause = () => {
+    if (player && !isNaN(player.duration)) {
+      if (player.paused) {
+        player.play()
+        updatePlaying(true)
+      }
+      else {
+        player.pause()
+        updatePlaying(false)
+      }
+    }
+  }
+
+  /**
+  * 下一曲
+  */
+  const handleClickNext = () => {
+    if (player && index + 1 !== playList?.length) {
+      player.pause()
+      updateIndex(index + 1)
+    }
+  }
+
+  /**
+   * 上一曲
+   */
+  const handleClickPrev = () => {
+    if (player && index !== 0) {
+      player.pause()
+      updateIndex(index - 1)
+    }
+  }
+
+  /**
+ * 点击进度条
+ * @param e 
+ */
+  const handleTimeRangeOnInput = (e: Event) => {
+    const target = e.target as HTMLInputElement
+    if (player && target && !isNaN(player.duration)) {
+      player.currentTime = player.duration / 1000 * Number(target.value)
+      player.play()
+      updatePlaying(true)
+    }
+  }
+
+  // 播放结束
   const onEnded = () => {
-    if (index + 1 === total) {
+    if (index + 1 === playList?.length) {
       if (loop) updateIndex(0)
       else
         updatePlaying(false)
@@ -112,13 +158,79 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
       updateIndex(index + 1)
   }
 
+  useEffect(() => {
+    if (playList) {
+      const test = metaDataList.filter(metaData => metaData.path === playList[index].path)
+      console.log('设定当前音频元数据')
+      if (test.length === 1) {
+        setMetaData({
+          ...test[0],
+          size: playList[index].size
+        })
+      } else {
+        setMetaData({
+          title: playList[index].title,
+          artist: '',
+          path: playList[index].path,
+        })
+      }
+    }
+  }, [index, metaDataList, playList])
+
+  // 设定封面
+  const cover = useMemo(() => {
+    return (!playList || !metaData || !metaData.cover)
+      ? './cd.png'
+      : URL.createObjectURL(new Blob([new Uint8Array(metaData.cover[0].data)], { type: 'image/png' }))
+  }, [playList, metaData])
+
+  // 添加 mediaSession
+  useMemo(() => {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: metaData?.title,
+      artist: metaData?.artist,
+      album: metaData?.album,
+      artwork: [{ src: cover }]
+    })
+    navigator.mediaSession.setActionHandler('play', () => handleClickPlayPause())
+    navigator.mediaSession.setActionHandler('pause', () => handleClickPlayPause())
+    navigator.mediaSession.setActionHandler('nexttrack', () => handleClickNext())
+    navigator.mediaSession.setActionHandler('previoustrack', () => handleClickPrev())
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null)
+      navigator.mediaSession.setActionHandler('pause', null)
+      navigator.mediaSession.setActionHandler('nexttrack', null)
+      navigator.mediaSession.setActionHandler('previoustrack', null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cover, metaData?.album, metaData?.artist, metaData?.title])
+
+  // 设置当前播放进度
+  useEffect(() => {
+    if (player)
+      player.ontimeupdate = () => {
+        updateCurrentTime(player.currentTime)
+      }
+  }, [player, updateCurrentTime])
+
+  // 加载完毕后立即播放并更新总时长
+  useEffect(() => {
+    if (player)
+      player.onloadedmetadata = () => {
+        player.play()
+        updateDuration(player.duration)
+        if (type === 'video')
+          updateVideoViewIsShow(true)
+      }
+  }, [player, type, updateVideoViewIsShow, updateDuration])
+
   return (
     <div>
       <Container
         maxWidth={false}
         disableGutters={true}
         sx={{ width: '100%', height: '100dvh', position: 'fixed', transition: 'all 0.5s' }}
-        style={(containerIsHiding) ? { bottom: '-100vh' } : { bottom: '0' }}
+        style={(videoViewIsShow) ? { bottom: '0' } : { bottom: '-100vh' }}
       >
         <Grid container
           sx={{
@@ -128,13 +240,6 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
             alignItems: 'start',
             backgroundColor: '#000'
           }}>
-          <Grid xs={12}
-            sx={{ backgroundColor: '#ffffff9e' }}
-          >
-            <IconButton aria-label="close" onClick={() => updateContainerIsHiding(true)} >
-              <KeyboardArrowDownOutlinedIcon />
-            </IconButton>
-          </Grid>
           <Grid xs={12} sx={{ width: '100%', height: '100%' }}>
             <video
               width={'100%'}
@@ -146,6 +251,16 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
             />
           </Grid>
 
+          <Grid xs={12}
+            position={'absolute'}
+            top={0}
+            sx={{ backgroundColor: '#ffffff9e' }}
+          >
+            <IconButton aria-label="close" onClick={() => updateVideoViewIsShow(false)} >
+              <KeyboardArrowDownOutlinedIcon />
+            </IconButton>
+          </Grid>
+
         </Grid>
 
       </Container>
@@ -153,7 +268,7 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
         elevation={0}
         square={true}
         sx={{ position: 'fixed', bottom: '0', width: '100%', boxShadow: '0px 4px 4px -2px rgba(0, 0, 0, 0.1), 0px -4px 4px -2px rgba(0, 0, 0, 0.1)' }}
-        style={(!containerIsHiding) ? { backgroundColor: '#ffffff9e' } : { backgroundColor: '#ffffff' }}
+        style={(videoViewIsShow) ? { backgroundColor: '#ffffff9e' } : { backgroundColor: '#ffffff' }}
       >
         <Container
           maxWidth={false}
@@ -163,12 +278,20 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
             playerRef.current && <div>
               <PlayerControl
                 player={playerRef.current}
-                setAudioViewIsDisplay={setAudioViewIsDisplay}
+                metaData={metaData}
+                cover={cover}
+                handleClickPlayPause={handleClickPlayPause}
+                handleClickNext={handleClickNext}
+                handleClickPrev={handleClickPrev}
+                handleTimeRangeOnInput={handleTimeRangeOnInput}
               />
               <AudioView
-                player={playerRef.current}
-                audioViewIsDisplay={audioViewIsDisplay}
-                setAudioViewIsDisplay={setAudioViewIsDisplay}
+                metaData={metaData}
+                cover={cover}
+                handleClickPlayPause={handleClickPlayPause}
+                handleClickNext={handleClickNext}
+                handleClickPrev={handleClickPrev}
+                handleTimeRangeOnInput={handleTimeRangeOnInput}
               />
               <PlayList />
             </div>

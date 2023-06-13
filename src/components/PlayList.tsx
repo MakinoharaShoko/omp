@@ -1,57 +1,61 @@
-import { Box, List, ListItemButton, ListItemText } from '@mui/material'
+import { Button, Drawer, List, ListItemButton, ListItemText } from '@mui/material'
+import Grid from '@mui/material/Unstable_Grid2'
 import usePlayListStore from '../store/usePlayListStore'
 import KeyboardArrowRightOutlinedIcon from '@mui/icons-material/KeyboardArrowRightOutlined'
+import useUiStore from '../store/useUiStore'
 
 const PlayList = () => {
 
-  const [playList, playListIsShow, updateIndex, updatePlayListIsShow] = usePlayListStore((state) => [
+  const [playList, updateIndex] = usePlayListStore((state) => [
     state.playList,
-    state.playListIsShow,
     state.updateIndex,
+  ])
+
+  const [playListIsShow, updatePlayListIsShow] = useUiStore((state) => [
+    state.playListIsShow,
     state.updatePlayListIsShow,
   ])
+
   return (
-    <div>
-      <Box
-        position={'fixed'}
-        height={'100dvh'}
-        right={playListIsShow ? 0 : '-100vw'}
-        maxWidth={'100vw'}
-        bottom={0}
-        sx={{
-          transition: 'all 0.25s',
-          backgroundColor: 'rgb(250, 250, 250, .5)',
-          boxShadow: '0px 4px 4px 4px rgba(0, 0, 0, 0.1)',
-          overflowX: 'hidden',
-          overflowY: 'auto',
+    <Drawer
+      anchor={'right'}
+      open={playListIsShow}
+      onClose={() => updatePlayListIsShow(false)}
+      elevation={0}
+      PaperProps={{
+        sx: {
+          backgroundColor: 'rgb(250, 250, 250, .25)',
           backdropFilter: 'blur(10px)',
-        }}
-      >
-        <List>
-          <ListItemButton onClick={() => updatePlayListIsShow(false)}>
+        }
+      }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: 'rgb(150, 150, 150, .25)'
+        }
+      }}
+    >
+      <Grid container wrap='nowrap' height={'100dvh'} >
+        <Grid height={'100dvh'}>
+          <Button sx={{ height: '100dvh', color: '#000' }} onClick={() => updatePlayListIsShow(false)}>
             <KeyboardArrowRightOutlinedIcon />
-          </ListItemButton>
-          {
-            (!playList)
-              ?
-              <ListItemText primary='PlayList No Item' sx={{ p: 2 }} />
-              :
-              <div>
-                {playList.map((playListItem, index) =>
-                  <ListItemButton onClick={() => updateIndex(index)} >
+          </Button>
+        </Grid>
+        <Grid>
+          <List
+            sx={{ p: 0 }}
+          >
+            {
+              <div style={{ height: '100dvh', overflowY: 'auto' }}>
+                {playList?.map((playListItem, index) =>
+                  <ListItemButton key={index} onClick={() => updateIndex(index)} >
                     <ListItemText primary={playListItem.title} />
                   </ListItemButton>)}
-                <ListItemButton onClick={() => updatePlayListIsShow(false)}>
-                  <KeyboardArrowRightOutlinedIcon />
-                </ListItemButton>
               </div>
-
-          }
-
-        </List>
-      </Box>
-
-    </div>
+            }
+          </List>
+        </Grid>
+      </Grid>
+    </Drawer>
   )
 }
 
