@@ -11,64 +11,197 @@ import usePlayerStore from '../../store/usePlayerStore'
 import PlayList from '../PlayList'
 import useUiStore from '../../store/useUiStore'
 import { MetaData } from '../../type'
+import { shallow } from 'zustand/shallow'
+import { useControlHide } from '../../hooks/useControlHide'
+import { useMediaSession } from '../../hooks/useMediaSession'
+import { shufflePlayList } from '../../util'
 
 const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<any> }) => {
 
-  const [type, playList, index, updateIndex] = usePlayListStore((state) => [
-    state.type,
-    state.playList,
-    state.index,
-    state.updateIndex,
-  ])
+  const [type, playList, current, updateCurrent, updatePlayList] = usePlayListStore(
+    (state) => [state.type, state.playList, state.current, state.updateCurrent, state.updatePlayList], shallow)
 
   const [metaData, setMetaData] = useState<MetaData | null>(null)
-  const [metaDataList, insertMetaDataList] = useMetaDataListStore(
-    (state) => [
-      state.metaDataList,
-      state.insertMetaDataList,
-    ])
 
-  const [
-    url,
-    loop,
-    updatePlaying,
-    updateUrl,
-    updateCurrentTime,
-    updateDuration,
-  ] = usePlayerStore((state) => [
-    state.url,
-    state.loop,
-    state.updatePlaying,
-    state.updateUrl,
-    state.updateCurrentTime,
-    state.updateDuration,
-  ])
+  const [metaDataList, insertMetaDataList] = useMetaDataListStore((state) => [state.metaDataList, state.insertMetaDataList], shallow)
 
-  const [videoViewIsShow, updateVideoViewIsShow] = useUiStore((state) => [state.videoViewIsShow, state.updateVideoViewIsShow,])
+  const [shuffle, repeat, updateCurrentTime, updateDuration, updateRepeat] = usePlayerStore(
+    (state) => [state.shuffle, state.repeat, state.updateCurrentTime, state.updateDuration, state.updateRepeat], shallow)
 
-  // 声明播放器对象
-  const playerRef = useRef<HTMLVideoElement>(null)
-  const player = playerRef.current
+  const [videoViewIsShow, controlIsShow, updateVideoViewIsShow, updateControlIsShow, updateFullscreen] = useUiStore(
+    (state) => [state.videoViewIsShow, state.controlIsShow, state.updateVideoViewIsShow, state.updateControlIsShow, state.updateFullscreen], shallow)
 
-  // 获取当前播放文件链接并开始播放
+  const playerRef = (useRef<HTMLVideoElement>(null))
+  const player = playerRef.current   // 声明播放器对象
+  const [url, setUrl] = useState('')
+
+  // 获取当前播放文件链接
   useMemo(() => {
     if (playList !== null) {
-      getFileData(playList[index].path).then((res) => {
-        console.log('开始播放', playList[index].path)
-        updateUrl(res['@microsoft.graph.downloadUrl'])
-        updatePlaying(true)
+      getFileData(playList.filter(item => item.index === current)[0].path).then((res) => {
+        console.log('开始播放', playList.filter(item => item.index === current)[0].path)
+        setUrl(res['@microsoft.graph.downloadUrl'])
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playList, index])
+  }, [playList?.filter(item => item.index === current)[0].path])
+
+  // 预载完毕后立即播放并更新总时长
+  useMemo(() => {
+    if (player !== null) {
+      updateDuration(0)
+      player.load()
+      player.onloadedmetadata = () => {
+        if (type === 'video') {
+          updateVideoViewIsShow(true)
+        }
+        player.play()
+        updateDuration(player.duration)
+      }
+    }
+  }, [player, type, updateVideoViewIsShow, updateDuration])
+
+  // 随机
+  useEffect(() => {
+    if (shuffle && playList) {
+      const randomPlayList = shufflePlayList(playList, current)
+      updatePlayList(randomPlayList)
+    }
+    if (!shuffle && playList) {
+      updatePlayList([...playList].sort((a, b) => a.index - b.index))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shuffle])
+
+  // 设置当前播放进度
+  useEffect(() => {
+    if (player)
+      player.ontimeupdate = () => {
+        updateCurrentTime(player.currentTime)
+      }
+  }, [player, updateCurrentTime])
+
+  // 播放视频时自动隐藏ui
+  useControlHide(type, videoViewIsShow)
+
+  // 播放开始
+  const handleClickPlay = () => {
+    if (player && !isNaN(player.duration)) {
+      player.play()
+    }
+  }
+
+  // 播放暂停
+  const handleClickPause = () => {
+    if (player && !isNaN(player.duration)) {
+      player.pause()
+    }
+  }
+
+  // 下一曲
+  const handleClickNext = () => {
+    if (player && playList) {
+      const next = playList[(playList.findIndex(item => item.index === current) + 1)]
+      // player.pause()
+      if (shuffle && next) {
+        updateCurrent(next.index)
+      }
+      if (!shuffle && current + 1 < playList?.length)
+        updateCurrent(current + 1)
+    }
+  }
+
+  // 上一曲
+  const handleClickPrev = () => {
+    if (player && playList) {
+      const prev = playList[(playList.findIndex(item => item.index === current) - 1)]
+      // player.pause()
+      if (shuffle && prev) {
+        updateCurrent(prev.index)
+      }
+      if (!shuffle && current > 0)
+        updateCurrent(current - 1)
+    }
+  }
+
+  /**
+   * 快进
+   * @param skipTime 
+   */
+  const handleClickSeekbackward = (skipTime: number) => {
+    if (player && !isNaN(player.duration)) {
+      player.currentTime = Math.max(player.currentTime - skipTime, 0)
+    }
+  }
+
+  /**
+   * 快退
+   * @param skipTime 
+   */
+  const handleClickSeekforward = (skipTime: number) => {
+    if (player && !isNaN(player.duration)) {
+      player.currentTime = Math.min(player.currentTime + skipTime, player.duration)
+    }
+  }
+
+  /**
+   * 跳到指定位置
+   * @param seekTime 
+   */
+  const SeekTo = (seekTime: number) => {
+    if (player && !isNaN(player.duration)) {
+      player.currentTime = seekTime
+    }
+  }
+
+  /**
+ * 点击进度条
+ * @param current 
+ */
+  const handleTimeRangeonChange = (current: number | number[]) => {
+    if (player && !isNaN(player.duration) && typeof (current) === 'number') {
+      updateCurrentTime(player.duration / 1000 * Number(current))
+      SeekTo(player.duration / 1000 * Number(current))
+    }
+  }
+
+  // 重复
+  const handleClickRepeat = () => {
+    if (repeat === 'off')
+      updateRepeat('all')
+    if (repeat === 'all')
+      updateRepeat('one')
+    if (repeat === 'one')
+      updateRepeat('off')
+  }
+
+  // 播放结束
+  const onEnded = () => {
+    if (playList) {
+      const next = playList[(playList.findIndex(item => item.index === current) + 1)]
+      if (repeat === 'one') {
+        player?.play()
+      } else if (current + 1 === playList?.length || !next) {
+        if (repeat === 'all')
+          if (shuffle)
+            updateCurrent(playList[playList.findIndex(item => item.index === playList[0].index)].index)
+          else
+            updateCurrent(0)
+      } else if (repeat === 'off' || repeat === 'all')
+        if (shuffle)
+          updateCurrent(next.index)
+        else
+          updateCurrent(current + 1)
+    }
+  }
 
   // 获取 metadata
   useMemo(() => {
     if (playerRef.current !== null) {
       playerRef.current.onplay = () => {
         if (type === 'audio' && playList !== null) {
-          console.log('开始获取 metadata', 'path:', playList[index].path)
-          const path = playList[index].path
+          console.log('开始获取 metadata', 'path:', playList.filter(item => item.index === current)[0].path)
+          const path = playList.filter(item => item.index === current)[0].path
           if (metaDataList.some(item => item.path === path)) {
             console.log('跳过获取 metadata', 'path:', path)
           } else {
@@ -97,132 +230,61 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
         }
       }
     }
-  }, [type, playList, index, url, metaDataList, insertMetaDataList])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url])
 
-  /**
-* 播放开始暂停
-*/
-  const handleClickPlayPause = () => {
-    if (player && !isNaN(player.duration)) {
-      if (player.paused) {
-        player.play()
-        updatePlaying(true)
-      }
-      else {
-        player.pause()
-        updatePlaying(false)
-      }
-    }
-  }
-
-  /**
-  * 下一曲
-  */
-  const handleClickNext = () => {
-    if (player && index + 1 !== playList?.length) {
-      player.pause()
-      updateIndex(index + 1)
-    }
-  }
-
-  /**
-   * 上一曲
-   */
-  const handleClickPrev = () => {
-    if (player && index !== 0) {
-      player.pause()
-      updateIndex(index - 1)
-    }
-  }
-
-  /**
- * 点击进度条
- * @param e 
- */
-  const handleTimeRangeOnInput = (e: Event) => {
-    const target = e.target as HTMLInputElement
-    if (player && target && !isNaN(player.duration)) {
-      player.currentTime = player.duration / 1000 * Number(target.value)
-      player.play()
-      updatePlaying(true)
-    }
-  }
-
-  // 播放结束
-  const onEnded = () => {
-    if (index + 1 === playList?.length) {
-      if (loop) updateIndex(0)
-      else
-        updatePlaying(false)
-    } else
-      updateIndex(index + 1)
-  }
-
+  // 根据播放列表和元数据列表更新当前音频元数据
   useEffect(() => {
     if (playList) {
-      const test = metaDataList.filter(metaData => metaData.path === playList[index].path)
+      const test = metaDataList.filter(metaData => metaData.path === playList.filter(item => item.index === current)[0].path)
       console.log('设定当前音频元数据')
       if (test.length === 1) {
         setMetaData({
           ...test[0],
-          size: playList[index].size
+          size: playList.filter(item => item.index === current)[0].size
         })
       } else {
         setMetaData({
-          title: playList[index].title,
+          title: playList.filter(item => item.index === current)[0].title,
           artist: '',
-          path: playList[index].path,
+          path: playList.filter(item => item.index === current)[0].path,
         })
       }
     }
-  }, [index, metaDataList, playList])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playList?.filter(item => item.index === current)[0].path, metaDataList])
 
   // 设定封面
   const cover = useMemo(() => {
     return (!playList || !metaData || !metaData.cover)
       ? './cd.png'
       : URL.createObjectURL(new Blob([new Uint8Array(metaData.cover[0].data)], { type: 'image/png' }))
-  }, [playList, metaData])
-
-  // 添加 mediaSession
-  useMemo(() => {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: metaData?.title,
-      artist: metaData?.artist,
-      album: metaData?.album,
-      artwork: [{ src: cover }]
-    })
-    navigator.mediaSession.setActionHandler('play', () => handleClickPlayPause())
-    navigator.mediaSession.setActionHandler('pause', () => handleClickPlayPause())
-    navigator.mediaSession.setActionHandler('nexttrack', () => handleClickNext())
-    navigator.mediaSession.setActionHandler('previoustrack', () => handleClickPrev())
-    return () => {
-      navigator.mediaSession.setActionHandler('play', null)
-      navigator.mediaSession.setActionHandler('pause', null)
-      navigator.mediaSession.setActionHandler('nexttrack', null)
-      navigator.mediaSession.setActionHandler('previoustrack', null)
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cover, metaData?.album, metaData?.artist, metaData?.title])
+  }, [metaData])
 
-  // 设置当前播放进度
-  useEffect(() => {
-    if (player)
-      player.ontimeupdate = () => {
-        updateCurrentTime(player.currentTime)
-      }
-  }, [player, updateCurrentTime])
+  // 向 mediaSession 发送当前播放进度
+  useMediaSession(player, cover, metaData?.album, metaData?.artist, metaData?.title,
+    handleClickPlay, handleClickPause, handleClickNext, handleClickPrev, handleClickSeekbackward, handleClickSeekforward, SeekTo)
 
-  // 加载完毕后立即播放并更新总时长
+  // 检测全屏
   useEffect(() => {
-    if (player)
-      player.onloadedmetadata = () => {
-        player.play()
-        updateDuration(player.duration)
-        if (type === 'video')
-          updateVideoViewIsShow(true)
-      }
-  }, [player, type, updateVideoViewIsShow, updateDuration])
+    const handleFullscreenChange = () => {
+      console.log('全屏状态改变')
+      updateFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  })
+
+  const handleClickFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen()
+    } else {
+      document.exitFullscreen()
+    }
+  }
 
   return (
     <div>
@@ -230,7 +292,7 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
         maxWidth={false}
         disableGutters={true}
         sx={{ width: '100%', height: '100dvh', position: 'fixed', transition: 'all 0.5s' }}
-        style={(videoViewIsShow) ? { bottom: '0' } : { bottom: '-100vh' }}
+        style={(videoViewIsShow) ? { top: '0' } : { top: '100vh' }}
       >
         <Grid container
           sx={{
@@ -248,15 +310,19 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
               autoPlay
               ref={playerRef}
               onEnded={() => onEnded()}
+              onDoubleClick={() => handleClickFullscreen()}
             />
           </Grid>
 
+          {/* 视频播放顶栏 */}
           <Grid xs={12}
             position={'absolute'}
-            top={0}
-            sx={{ backgroundColor: '#ffffff9e' }}
+            sx={controlIsShow ? { top: 0, left: 0, borderRadius: '0 0 5px 0', backgroundColor: '#ffffffee', width: 'auto' } : { display: 'none' }}
           >
-            <IconButton aria-label="close" onClick={() => updateVideoViewIsShow(false)} >
+            <IconButton aria-label="close" onClick={() => {
+              updateVideoViewIsShow(false)
+              updateControlIsShow(true)
+            }} >
               <KeyboardArrowDownOutlinedIcon />
             </IconButton>
           </Grid>
@@ -267,8 +333,8 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
       <Paper
         elevation={0}
         square={true}
-        sx={{ position: 'fixed', bottom: '0', width: '100%', boxShadow: '0px 4px 4px -2px rgba(0, 0, 0, 0.1), 0px -4px 4px -2px rgba(0, 0, 0, 0.1)' }}
-        style={(videoViewIsShow) ? { backgroundColor: '#ffffff9e' } : { backgroundColor: '#ffffff' }}
+        sx={{ position: 'fixed', bottom: '0', width: '100%', boxShadow: '0px -4px 4px -2px rgba(0, 0, 0, 0.1)' }}
+        style={(videoViewIsShow) ? { backgroundColor: '#ffffffee' } : { backgroundColor: '#ffffff' }}
       >
         <Container
           maxWidth={false}
@@ -276,22 +342,35 @@ const Player = ({ getFileData }: { getFileData: (filePath: string) => Promise<an
         >
           {
             playerRef.current && <div>
-              <PlayerControl
+              <div style={(controlIsShow) ? {} : { display: 'none' }}>
+                <PlayerControl
+                  player={playerRef.current}
+                  metaData={metaData}
+                  cover={cover}
+                  handleClickPlay={handleClickPlay}
+                  handleClickPause={handleClickPause}
+                  handleClickNext={handleClickNext}
+                  handleClickPrev={handleClickPrev}
+                  handleClickSeekforward={handleClickSeekforward}
+                  handleClickSeekbackward={handleClickSeekbackward}
+                  handleTimeRangeonChange={handleTimeRangeonChange}
+                  handleClickRepeat={handleClickRepeat}
+                  handleClickFullscreen={handleClickFullscreen}
+                />
+              </div>
+              <AudioView
                 player={playerRef.current}
                 metaData={metaData}
                 cover={cover}
-                handleClickPlayPause={handleClickPlayPause}
+                handleClickPlay={handleClickPlay}
+                handleClickPause={handleClickPause}
                 handleClickNext={handleClickNext}
                 handleClickPrev={handleClickPrev}
-                handleTimeRangeOnInput={handleTimeRangeOnInput}
-              />
-              <AudioView
-                metaData={metaData}
-                cover={cover}
-                handleClickPlayPause={handleClickPlayPause}
-                handleClickNext={handleClickNext}
-                handleClickPrev={handleClickPrev}
-                handleTimeRangeOnInput={handleTimeRangeOnInput}
+                handleClickSeekforward={handleClickSeekforward}
+                handleClickSeekbackward={handleClickSeekbackward}
+                handleTimeRangeonChange={handleTimeRangeonChange}
+                handleClickRepeat={handleClickRepeat}
+                handleClickFullscreen={handleClickFullscreen}
               />
               <PlayList />
             </div>

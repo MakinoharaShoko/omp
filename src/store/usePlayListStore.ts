@@ -4,11 +4,10 @@ import { PlayListAction, PlayListStatus } from '../type'
 const usePlayListStore = create<PlayListStatus & PlayListAction>((set) => ({
   type: 'audio',
   playList: null,
-  index: 0,
-  playListIsShow: false,
+  current: 0,
   updateType: (type) => set(() => ({ type: type })),
   updatePlayList: (playList) => set(() => ({ playList: playList })),
-  updateIndex: (index) => set(() => ({ index: index })),
+  updateCurrent: (current) => set(() => ({ current: current })),
 }))
 
 export default usePlayListStore

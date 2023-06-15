@@ -2,18 +2,17 @@ import { Breadcrumbs, Button, CircularProgress, Grid, ListItem, ListItemButton, 
 import FolderIcon from '@mui/icons-material/Folder'
 import MusicNoteIcon from '@mui/icons-material/MusicNote'
 import MovieIcon from '@mui/icons-material/Movie'
+import { shallow } from 'zustand/shallow'
 import usePlayListStore from '../store/usePlayListStore'
+import { checkFileType, shufflePlayList } from '../util'
+import usePlayerStore from '../store/usePlayerStore'
 
 const ListView = ({ data, error, isLoading, folderTree, setFolderTree }
-  : { data: any, error: Error | undefined, isLoading: boolean, folderTree: string[], setFolderTree: (arg0: string[]) => void }
-) => {
-  const [updateType, updatePlayList, updateIndex] = usePlayListStore(
-    (state) => [
-      state.updateType,
-      state.updatePlayList,
-      state.updateIndex,
-    ]
-  )
+  : { data: any, error: Error | undefined, isLoading: boolean, folderTree: string[], setFolderTree: (arg0: string[]) => void }) => {
+
+  const [updateType, updatePlayList, updateCurrent] = usePlayListStore(
+    (state) => [state.updateType, state.updatePlayList, state.updateCurrent], shallow)
+  const shuffle = usePlayerStore(state => state.shuffle)
 
   /**
    * 点击文件夹导航
@@ -39,33 +38,33 @@ const ListView = ({ data, error, isLoading, folderTree, setFolderTree }
     }
     // 点击文件时将媒体文件添加到播放列表
     if (data[index].file && name !== null) {
-      const list = data.map((item: any) => {
-        return {
-          title: item.name,
-          size: item.size,
-          path: (folderTree.join('/') === 'Home') ? '/' : folderTree.slice(1).join('/').concat(`/${item.name}`),
-        }
-      })
-
-      if (isAudio(name)) {
-        const lists = list.filter((item: { title: string }) => isAudio(item.title))
-        const index = lists.findIndex((obj: { title: string }) => obj.title === name)
-        updateType('audio')
-        updateIndex(index)
+      let current = 0
+      const lists = data
+        .filter((item: { name: string }) => {
+          if (checkFileType(name) === 'audio')
+            return checkFileType(item.name) === 'audio'
+          if (checkFileType(name) === 'video')
+            return checkFileType(item.name) === 'video'
+          return false
+        })
+        .map((item: { name: string; size: number }, index: number) => {
+          if (name === item.name)
+            current = index
+          return {
+            index: index,
+            title: item.name,
+            size: item.size,
+            path: (folderTree.join('/') === 'Home') ? '/' : folderTree.slice(1).join('/').concat(`/${item.name}`),
+          }
+        })
+      updateCurrent(current)
+      updateType(checkFileType(name))
+      if (shuffle)
+        updatePlayList(shufflePlayList(lists, current))
+      else
         updatePlayList(lists)
-      }
-      if (isVideo(name)) {
-        const lists = list.filter((item: { title: string }) => isVideo(item.title))
-        const index = lists.findIndex((obj: { title: string }) => obj.title === name)
-        updateType('video')
-        updateIndex(index)
-        updatePlayList(lists)
-      }
     }
   }
-
-  const isAudio = (name: string) => (/.(wav|mp3|aac|ogg|flac|m4a|opus)$/i).test(name)
-  const isVideo = (name: string) => (/.(mp4|mkv|avi|mov|rmvb|webm|flv)$/i).test(name)
 
   return (
     <div>
@@ -93,8 +92,8 @@ const ListView = ({ data, error, isLoading, folderTree, setFolderTree }
                   <ListItemButton>
                     <ListItemIcon>
                       {(item.folder) && <FolderIcon />}
-                      {(isAudio(item.name) && <MusicNoteIcon />)}
-                      {(isVideo(item.name)) && <MovieIcon />}
+                      {(checkFileType(item.name) === 'audio' && <MusicNoteIcon />)}
+                      {(checkFileType(item.name) === 'video') && <MovieIcon />}
                     </ListItemIcon>
                     <Grid container spacing={2} sx={{ overflow: 'hidden' }} wrap={'nowrap'}>
                       <Grid item xs zeroMinWidth>
