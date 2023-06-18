@@ -47,6 +47,8 @@ interface MetaDataListAction {
 }
 
 interface PLayerStatus {
+  isPlaying: boolean;
+  cover: string;
   currentTime: number;
   duration: number;
   shuffle: boolean;
@@ -54,6 +56,8 @@ interface PLayerStatus {
 }
 
 interface PLayerAction {
+  updateIsPlaying: (isPlaying: PLayerStatus['isPlaying']) => void;
+  updateCover: (cover: PLayerStatus['cover']) => void;
   updateCurrentTime: (currentTime: PLayerStatus['currentTime']) => void;
   updateDuration: (duration: PLayerStatus['duration']) => void;
   updateShuffle: (shuffle: PLayerStatus['shuffle']) => void;
@@ -66,6 +70,7 @@ interface UiStatus {
   controlIsShow: boolean;
   playListIsShow: boolean;
   fullscreen: boolean;
+  mobileSideBarOpen: boolean;
 }
 
 interface UiAction {
@@ -74,6 +79,7 @@ interface UiAction {
   updateControlIsShow: (controlIsShow: UiStatus['controlIsShow']) => void;
   updatePlayListIsShow: (playListIsShow: UiStatus['playListIsShow']) => void;
   updateFullscreen: (fullscreen: UiStatus['fullscreen']) => void;
+  updateMobileSideBarOpen: (mobileSideBarOpen: UiStatus['mobileSideBarOpen']) => void,
 }
 
 export type {

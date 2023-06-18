@@ -13,6 +13,9 @@ import RepeatIcon from '@mui/icons-material/Repeat'
 import RepeatOneIcon from '@mui/icons-material/RepeatOne'
 import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
+import PanoramaOutlinedIcon from '@mui/icons-material/PanoramaOutlined'
+import { extractColors } from 'extract-colors'
+
 // import PictureInPictureIcon from '@mui/icons-material/PictureInPicture'
 import { MetaData } from '../../type'
 import usePlayListStore from '../../store/usePlayListStore'
@@ -20,12 +23,11 @@ import usePlayerStore from '../../store/usePlayerStore'
 import useUiStore from '../../store/useUiStore'
 import { timeShift } from '../../util'
 import { shallow } from 'zustand/shallow'
+import { useMemo, useState } from 'react'
 
 const AudioView = (
   {
-    player,
     metaData,
-    cover,
     handleClickPlay,
     handleClickPause,
     handleClickNext,
@@ -38,9 +40,7 @@ const AudioView = (
   }
     :
     {
-      player: HTMLVideoElement,
       metaData: MetaData | null,
-      cover: string,
       handleClickPlay: () => void,
       handleClickPause: () => void,
       handleClickNext: () => void,
@@ -57,8 +57,18 @@ const AudioView = (
   const [audioViewIsShow, fullscreen, updateAudioViewIsShow, updatePlayListIsShow] = useUiStore(
     (state) => [state.audioViewIsShow, state.fullscreen, state.updateAudioViewIsShow, state.updatePlayListIsShow], shallow)
 
-  const [currentTime, duration, shuffle, repeat, updateShuffle] = usePlayerStore(
-    (state) => [state.currentTime, state.duration, state.shuffle, state.repeat, state.updateShuffle], shallow)
+  const [isPlaying, cover, currentTime, duration, shuffle, repeat, updateShuffle] = usePlayerStore(
+    (state) => [state.isPlaying, state.cover, state.currentTime, state.duration, state.shuffle, state.repeat, state.updateShuffle], shallow)
+
+  const [noBackgound, setNoBackground] = useState(false)
+  const [color, setColor] = useState('#ffffff')
+
+  useMemo(() => {
+    if (cover !== './cd.png')
+      extractColors(cover)
+        .then(color => setColor(color[0].hex))
+        .catch(console.error)
+  }, [cover])
 
   return (
     <div style={{
@@ -71,15 +81,18 @@ const AudioView = (
           width: '100%',
           height: '100dvh',
           position: 'fixed',
-          transition: 'all 0.5s',
-          background: `linear-gradient(rgba(160, 160, 160, .5), rgb(160, 160, 160, .5)), url(${cover})  no-repeat center`,
+          transition: 'top 0.35s ease-in-out, background 0.5s ease-out',
+          background:
+            (noBackgound || cover === './cd.png')
+              ? `linear-gradient(rgba(50, 50, 50, 0.6), ${color}bb), #000`
+              : `linear-gradient(rgba(50, 50, 50, 0.2), ${color}11 ), url(${cover})  no-repeat center, #000`,
           backgroundSize: 'cover',
           color: '#fff',
           overflow: 'hidden'
         }}
         style={(audioViewIsShow) ? { top: '-100dvh' } : { top: '0' }}
       >
-        <Box sx={{ backdropFilter: 'blur(10px)', }}>
+        <Box sx={{ backdropFilter: (noBackgound || cover === './cd.png') ? '' : 'blur(25px)' }}>
           <Container maxWidth={'xl'} disableGutters={true}>
             <Grid container
               pt={{ xs: 1, sm: 2 }}
@@ -104,6 +117,9 @@ const AudioView = (
                 <IconButton aria-label="PlayList" onClick={() => updatePlayListIsShow(true)} >
                   <QueueMusicOutlinedIcon style={{ color: '#fff' }} />
                 </IconButton>
+                <IconButton aria-label="NoBackground" onClick={() => setNoBackground(!noBackgound)} >
+                  <PanoramaOutlinedIcon style={noBackgound ? { color: '#aaa' } : { color: '#fff' }} />
+                </IconButton>
                 <IconButton aria-label="Full" onClick={() => handleClickFullscreen()}>
                   {
                     fullscreen
@@ -127,9 +143,12 @@ const AudioView = (
                   justifyContent: 'space-evenly',
                   alignItems: 'center',
                 }}
+                pl={{ xs: 0, sm: 1 }}
+                pr={{ xs: 0, sm: 1 }}
+                gap={{ xs: 0, sm: 3 }}
               >
                 {/* 封面 */}
-                <Grid sm={4} xs={12} pl={{ xs: 0, sm: 1 }}>
+                <Grid sm={4} xs={12} >
                   <img style={{ maxHeight: '100vw', width: '100%', objectFit: 'contain' }} src={cover} />
                 </Grid>
 
@@ -148,7 +167,7 @@ const AudioView = (
                   </Grid>
 
                   {/* 播放进度条 */}
-                  <Grid xs={12} pl={3} pr={3} >
+                  <Grid xs={12} pl={{ xs: 3, sm: 0 }} pr={{ xs: 3, sm: 0 }} >
                     <Slider
                       size="small"
                       min={0}
@@ -165,7 +184,7 @@ const AudioView = (
 
                   <Grid xs={12} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', wrap: 'nowrap' }}>
                     <IconButton aria-label="shuffle" onClick={() => updateShuffle(!shuffle)}>
-                      <ShuffleIcon sx={{ height: 28, width: 28 }} style={(shuffle) ? { color: '#fff' } : { color: '#ddd' }} />
+                      <ShuffleIcon sx={{ height: 28, width: 28 }} style={(shuffle) ? { color: '#fff' } : { color: '#ccc' }} />
                     </IconButton>
                     <IconButton aria-label="previous" onClick={() => handleClickPrev()} >
                       <SkipPreviousIcon sx={{ height: 48, width: 48 }} style={{ color: '#fff' }} />
@@ -174,7 +193,7 @@ const AudioView = (
                       <FastRewindIcon sx={{ height: 32, width: 32 }} style={{ color: '#fff' }} />
                     </IconButton>
                     {
-                      (player.paused)
+                      (!isPlaying)
                         ?
                         <IconButton aria-label="play" onClick={() => handleClickPlay()}>
                           <PlayCircleOutlinedIcon sx={{ height: 64, width: 64 }} style={{ color: '#fff' }} />
@@ -196,7 +215,7 @@ const AudioView = (
                           ?
                           < RepeatOneIcon sx={{ height: 28, width: 28 }} style={{ color: '#fff' }} />
                           :
-                          <RepeatIcon sx={{ height: 28, width: 28 }} style={(repeat === 'off') ? { color: '#ddd' } : { color: '#fff' }} />
+                          <RepeatIcon sx={{ height: 28, width: 28 }} style={(repeat === 'off') ? { color: '#ccc' } : { color: '#fff' }} />
                       }
 
                     </IconButton>

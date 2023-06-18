@@ -1,37 +1,44 @@
-import { AppBar, Box, Toolbar, Typography, Button, Link } from '@mui/material'
+import { Box, Typography, Link, Container, IconButton, useTheme } from '@mui/material'
 import GitHubIcon from '@mui/icons-material/GitHub'
+import LogoutIcon from '@mui/icons-material/Logout'
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
+import useUiStore from '../store/useUiStore'
+import { shallow } from 'zustand/shallow'
 
 const NavBar = ({ accounts, handleLogout }: { accounts: any, handleLogout: () => void }) => {
+  const theme = useTheme()
+  const [mobileSideBarOpen, updateMobileSideBarOpen] = useUiStore((state) => [state.mobileSideBarOpen, state.updateMobileSideBarOpen], shallow)
   return (
-    <div>
-      <Box sx={{ flexGrow: 1 }}>
-        <AppBar
-          position="static"
-          elevation={0}
-          sx={{
-            color: '#000',
-            backgroundColor: '#fff',
-            boxShadow: '0px 4px 4px -2px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          <Toolbar>
-            <img src='./logo.svg' style={{ height: '2rem', marginRight: '1rem' }}></img>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+    <Box sx={{
+      position: 'fixed', top: 0, left: 0, width: '100%', boxShadow: `0px 4px 4px -2px ${theme.palette.divider} `
+    }}>
+      <Container maxWidth={'xl'} disableGutters={true}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '4rem', pl: 1, pr: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} >
+            <IconButton onClick={() => updateMobileSideBarOpen(!mobileSideBarOpen)} sx={{ display: { xs: '', sm: 'none' } }}>
+              <MenuOutlinedIcon />
+            </IconButton>
+            <img src='./logo.svg' style={{ height: '1.5rem', marginLeft: '0.5rem', marginRight: '0.5rem' }}></img>
+            <Typography variant="h6" component="div" >
               OMP
             </Typography>
+          </Box>
+          <div >
             {
               (accounts.length !== 0)
                 ?
-                <Button onClick={() => handleLogout()}>sign out</Button>
+                <IconButton onClick={() => handleLogout()}>
+                  <LogoutIcon />
+                </IconButton>
                 :
-                <Link href='https://github.com/nini22P/omp'>
-                  <GitHubIcon sx={{ color: '#000' }} />
-                </Link>
+                <IconButton component={Link} href='https://github.com/nini22P/omp'>
+                  <GitHubIcon />
+                </IconButton>
             }
-          </Toolbar>
-        </AppBar>
-      </Box>
-    </div>
+          </div>
+        </Box>
+      </Container>
+    </Box>
   )
 }
 
