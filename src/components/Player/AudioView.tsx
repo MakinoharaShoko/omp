@@ -18,7 +18,7 @@ import { extractColors } from 'extract-colors'
 
 // import PictureInPictureIcon from '@mui/icons-material/PictureInPicture'
 import { MetaData } from '../../type'
-import usePlayListStore from '../../store/usePlayListStore'
+import usePlayQueueStore from '../../store/usePlayQueueStore'
 import usePlayerStore from '../../store/usePlayerStore'
 import useUiStore from '../../store/useUiStore'
 import { timeShift } from '../../util'
@@ -52,10 +52,10 @@ const AudioView = (
       handleClickFullscreen: () => void,
     }
 ) => {
-  const [playList] = usePlayListStore((state) => [state.playList])
+  const [playQueue] = usePlayQueueStore((state) => [state.playQueue])
 
-  const [audioViewIsShow, fullscreen, updateAudioViewIsShow, updatePlayListIsShow] = useUiStore(
-    (state) => [state.audioViewIsShow, state.fullscreen, state.updateAudioViewIsShow, state.updatePlayListIsShow], shallow)
+  const [audioViewIsShow, fullscreen, updateAudioViewIsShow, updatePlayQueueIsShow] = useUiStore(
+    (state) => [state.audioViewIsShow, state.fullscreen, state.updateAudioViewIsShow, state.updatePlayQueueIsShow], shallow)
 
   const [isPlaying, cover, currentTime, duration, shuffle, repeat, updateShuffle] = usePlayerStore(
     (state) => [state.isPlaying, state.cover, state.currentTime, state.duration, state.shuffle, state.repeat, state.updateShuffle], shallow)
@@ -81,18 +81,18 @@ const AudioView = (
           width: '100%',
           height: '100dvh',
           position: 'fixed',
-          transition: 'top 0.35s ease-in-out, background 0.5s ease-out',
+          transition: 'top 0.35s ease-in-out',
           background:
             (noBackgound || cover === './cd.png')
               ? `linear-gradient(rgba(50, 50, 50, 0.6), ${color}bb), #000`
-              : `linear-gradient(rgba(50, 50, 50, 0.2), ${color}11 ), url(${cover})  no-repeat center, #000`,
+              : `linear-gradient(rgba(50, 50, 50, 0.3), rgba(50, 50, 50, 0.3) ), url(${cover})  no-repeat center, #000`,
           backgroundSize: 'cover',
           color: '#fff',
           overflow: 'hidden'
         }}
         style={(audioViewIsShow) ? { top: '-100dvh' } : { top: '0' }}
       >
-        <Box sx={{ backdropFilter: (noBackgound || cover === './cd.png') ? '' : 'blur(25px)' }}>
+        <Box sx={{ backdropFilter: (noBackgound || cover === './cd.png') ? '' : 'blur(30px)' }}>
           <Container maxWidth={'xl'} disableGutters={true}>
             <Grid container
               pt={{ xs: 1, sm: 2 }}
@@ -114,7 +114,7 @@ const AudioView = (
               </Grid>
 
               <Grid xs={6} pr={{ xs: 1, sm: 0 }} textAlign={'right'}>
-                <IconButton aria-label="PlayList" onClick={() => updatePlayListIsShow(true)} >
+                <IconButton aria-label="PlayQueue" onClick={() => updatePlayQueueIsShow(true)} >
                   <QueueMusicOutlinedIcon style={{ color: '#fff' }} />
                 </IconButton>
                 <IconButton aria-label="NoBackground" onClick={() => setNoBackground(!noBackgound)} >
@@ -156,13 +156,13 @@ const AudioView = (
                 <Grid sm={8} xs={12} pl={{ xs: 0, lg: 5 }} textAlign={'center'}>
                   <Grid xs={12} pl={4} pr={4} >
                     <Typography variant="h6" component="div" textAlign={'center'} noWrap>
-                      {(!playList || !metaData) ? 'Not playing' : metaData.title}
+                      {(!playQueue || !metaData) ? 'Not playing' : metaData.title}
                     </Typography>
                     <Typography variant="body1" component="div" textAlign={'center'} noWrap>
-                      {(playList && metaData) && metaData.artist}
+                      {(playQueue && metaData) && metaData.artist}
                     </Typography>
                     <Typography variant="body1" component="div" textAlign={'center'} noWrap>
-                      {(playList && metaData) && metaData.album}
+                      {(playQueue && metaData) && metaData.album}
                     </Typography>
                   </Grid>
 

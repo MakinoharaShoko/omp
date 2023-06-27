@@ -1,21 +1,20 @@
-import { Button, Drawer, List, ListItemButton, ListItemText } from '@mui/material'
+import { Button, Drawer, List, ListItemButton, ListItemText, useTheme } from '@mui/material'
 import Grid from '@mui/material/Unstable_Grid2'
 import { shallow } from 'zustand/shallow'
-import usePlayListStore from '../store/usePlayListStore'
+import usePlayQueueStore from '../../store/usePlayQueueStore'
 import KeyboardArrowRightOutlinedIcon from '@mui/icons-material/KeyboardArrowRightOutlined'
-import useUiStore from '../store/useUiStore'
+import useUiStore from '../../store/useUiStore'
 
-const PlayList = () => {
-
-  const [playList, current, updateCurrent] = usePlayListStore((state) => [state.playList, state.current, state.updateCurrent], shallow)
-
-  const [playListIsShow, updatePlayListIsShow] = useUiStore((state) => [state.playListIsShow, state.updatePlayListIsShow], shallow)
+const PlayQueue = () => {
+  const theme = useTheme()
+  const [playQueue, current, updateCurrent] = usePlayQueueStore((state) => [state.playQueue, state.current, state.updateCurrent], shallow)
+  const [playQueueIsShow, updatePlayQueueIsShow] = useUiStore((state) => [state.playQueueIsShow, state.updatePlayQueueIsShow], shallow)
 
   return (
     <Drawer
       anchor={'right'}
-      open={playListIsShow}
-      onClose={() => updatePlayListIsShow(false)}
+      open={playQueueIsShow}
+      onClose={() => updatePlayQueueIsShow(false)}
       elevation={0}
       // sx={{ transform: 'translateZ(0)' }}  // blur 性能优化
       PaperProps={{
@@ -33,7 +32,7 @@ const PlayList = () => {
     >
       <Grid container wrap='nowrap' height={'100dvh'} >
         <Grid height={'100dvh'}>
-          <Button sx={{ height: '100dvh' }} onClick={() => updatePlayListIsShow(false)}>
+          <Button sx={{ height: '100dvh' }} onClick={() => updatePlayQueueIsShow(false)}>
             <KeyboardArrowRightOutlinedIcon />
           </Button>
         </Grid>
@@ -43,13 +42,13 @@ const PlayList = () => {
           >
             {
               <div style={{ height: '100dvh', overflowY: 'auto' }}>
-                {playList?.map((playListItem, index) =>
+                {playQueue?.map((playQueueItem, index) =>
                   <ListItemButton
                     key={index}
-                    onClick={() => updateCurrent(playListItem.index)}
-                    style={(playListItem.index === current) ? { borderLeft: 'solid' } : {}}
+                    onClick={() => updateCurrent(playQueueItem.index)}
+                    style={(playQueueItem.index === current) ? { color: theme.palette.primary.main } : {}}
                   >
-                    <ListItemText primary={playListItem.title} />
+                    <ListItemText primary={playQueueItem.title} />
                   </ListItemButton>)}
               </div>
             }
@@ -60,4 +59,4 @@ const PlayList = () => {
   )
 }
 
-export default PlayList
+export default PlayQueue
