@@ -1,66 +1,76 @@
 import { useMemo } from 'react'
+import useSWR from 'swr'
+import usePlaylistsStore from '../store/usePlaylistsStore'
 import useHistoryStore from '../store/useHistoryStore'
 import useFilesData from './useFilesData'
-import { fetchJson } from '../services'
-import { shallow } from 'zustand/shallow'
-import useSWR from 'swr'
-import usePlayListsStore from '../store/usePlayListsStore'
+import fetchJson from '../services/fetchJson'
+import { AccountInfo } from '@azure/msal-browser'
+import { File } from '../types/file'
+import { Playlist } from '../types/playlist'
 
-const useSync = () => {
-  const [historyList, updateHistoryList] = useHistoryStore((state) => [state.historyList, state.updateHistoryList], shallow)
-  const [playLists, updatePlayLists] = usePlayListsStore((state) => [state.playLists, state.updatePlayLists], shallow)
+const useSync = (accounts: AccountInfo[]) => {
+  const [historyList, updateHistoryList] = useHistoryStore((state) => [state.historyList, state.updateHistoryList])
+  const [playlists, updatePlaylists] = usePlaylistsStore((state) => [state.playlists, state.updatePlaylists])
   const { getAppRootFilesData, uploadAppRootJsonData } = useFilesData()
 
-  // 自动从 OneDrive 获取配置
-  const appConfigfetcher = async () => {
+  const isLoggedIn = accounts.length > 0
+
+  // 自动从 OneDrive 获取应用数据
+  const appDatafetcher = async () => {
     const appRootFiles = await getAppRootFilesData('/')
     const historyFile = appRootFiles.value.find((item: { name: string }) => item.name === 'history.json')
-    const playListsFile = appRootFiles.value.find((item: { name: string }) => item.name === 'playlists.json')
+    const playlistsFile = appRootFiles.value.find((item: { name: string }) => item.name === 'playlists.json')
     let history = []
-    let playLists = []
+    let playlists = []
+
     if (historyFile) {
       history = await fetchJson(historyFile['@microsoft.graph.downloadUrl'])
     }
-    if (playListsFile) {
-      playLists = await fetchJson(playListsFile['@microsoft.graph.downloadUrl'])
+    if (playlistsFile) {
+      playlists = await fetchJson(playlistsFile['@microsoft.graph.downloadUrl'])
     }
+    console.log('Get app data')
     return {
-      history: history.filter((item: { filePath: string }) => item.filePath),
-      playLists: playLists.filter((item: { id: string }) => item.id)
+      history: history.filter((item: File) => typeof item.filePath === 'object'),
+      playlists: playlists.filter((item: Playlist) => typeof item.fileList === 'object')
     }
   }
-  const { data: appConfigData, error: appConfigError, isLoading: appConfigIsLoading } = useSWR('appConfig', appConfigfetcher)
-  console.log('Get appConfigData', appConfigData)
+
+  const { data, error, isLoading } = useSWR<{ history: File[], playlists: Playlist[] }>(isLoggedIn ? 'fetchAppData' : null, appDatafetcher)
 
   // 自动更新播放历史
-  useMemo(() => {
-    if (!appConfigIsLoading && !appConfigError && appConfigData && appConfigData?.history !== '[]')
-      updateHistoryList(appConfigData.history)
+  useMemo(
+    () => {
+      (!isLoading && !error && data?.history) && updateHistoryList(data.history)
+      return true
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appConfigData])
+    [data]
+  )
 
   // 自动上传播放历史
-  useMemo(() => {
-    if (historyList !== null) {
-      uploadAppRootJsonData('history.json', JSON.stringify(historyList))
-    }
+  useMemo(
+    () => (historyList !== null) && uploadAppRootJsonData('history.json', JSON.stringify(historyList)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyList])
+    [historyList]
+  )
 
   // 自动更新播放列表
-  useMemo(() => {
-    if (!appConfigIsLoading && !appConfigError && appConfigData && appConfigData?.playLists !== '[]')
-      updatePlayLists(appConfigData.playLists)
+  useMemo(
+    () => {
+      (!isLoading && !error && data?.playlists) && updatePlaylists(data.playlists)
+      return true
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appConfigData])
+    [data]
+  )
 
   // 自动上传播放列表
-  useMemo(() => {
-    if (playLists !== null) {
-      uploadAppRootJsonData('playlists.json', JSON.stringify(playLists))
-    }
+  useMemo(
+    () => (playlists !== null) && uploadAppRootJsonData('playlists.json', JSON.stringify(playlists)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playLists])
+    [playlists]
+  )
 
 }
 

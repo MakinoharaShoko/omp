@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="./logo.svg" sizes="any">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="./manifest.json" />
+  <meta id="themeColorLight" name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+  <meta id="themeColorDark" name="theme-color" media="(prefers-color-scheme: dark)" content="#121212" />
+  <title>OMP</title>
+  <meta name="description" content="OneDrive Media Player" />
+  <meta property="og:site_name" content="OMP" />
+  <meta property="og:title" content="OMP" />
+  <meta property="og:description" content="OneDrive Media Player" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="./icon-512.png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="twitter:card" content="summary" />
+  <meta property="twitter:image" content="./icon-512.png" />
+</head>
+
+<body>
+  <div id="root"></div>
+</body>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("service-worker.js")
+        .then((registration) => {
+          console.log("Service Worker registered: ", registration);
+        })
+        .catch((registrationError) => {
+          console.error("Service Worker registration failed: ", registrationError);
+        });
+    });
+  }
+</script>
+
+</html>

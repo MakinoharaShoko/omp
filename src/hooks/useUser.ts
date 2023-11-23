@@ -1,8 +1,8 @@
 import { useMsal } from '@azure/msal-react'
-import { loginRequest } from '../authConfig'
+import { loginRequest } from '../services/authConfig'
 
 const useUser = () => {
-  const { instance } = useMsal()
+  const { instance, accounts } = useMsal()
 
   // 登入
   const login = () => {
@@ -19,7 +19,7 @@ const useUser = () => {
     })
   }
 
-  return { login, logout }
+  return { instance, accounts, login, logout }
 }
 
 export default useUser

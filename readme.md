@@ -17,27 +17,55 @@ English | [中文](./readme_cn.md)
 - [x] Media Session
 - [x] PWA
 - [x] History Sync
-- [ ] Playlists Sync
+- [x] Playlists Sync
 
 ## Screenshot
 
-![omp](https://github.com/nini22P/omp/assets/60903333/f74801dc-8f12-42db-9d83-814c0289093a)
+![omp](https://github.com/nini22P/omp/assets/60903333/9ebdf1af-e0f0-40b0-b90c-6f1795ccf2c3)
 
-## Development
+## FAQ
+
+### Where is my data stored?
+
+All of OMP data is stored in the `Apps / OMP` folder in your OneDrive. Where `history.json` is the history and `playlists.json` is the playlists. If you have lost your data, you can restore an older version by visiting the OneDrive web version.
+
+### How to retrieve old versions of data after changing client IDs
+
+The client ID has been changed in `v1.2.0`, you need to re-authorize it, and new data will be created in the new folder if you are using the old version.
+
+First close OMP, then open `OneDrive / Apps`, find `OMP 1` folder, delete all files in it, then find `OMP` folder, move all files in it to `OMP 1` folder, delete `OMP` folder, and finally rename `OMP 1` folder to `OMP`.
+
+## Running and Build
+
+### App registrations
 
 1. Go to <https://portal.azure.com/>
 2. Into `App registrations` register an application
 3. `Supported account types` select the third item (`Accounts in any organizational directory and personal Microsoft accounts`)
-4. `Redirect URI` select `SPA`, url enter <http://localhost:5173/>
+4. `Redirect URI` select `SPA`, url enter <http://localhost:8760>
 5. `API Permissions` add `User.Read` `Files.Read` `Files.ReadWrite.AppFolder`
-6. Add `.env.development` in project path
+
+### Run dev server
+
+Add `.env.development` in project path
 
 ```env
-VITE_CLIENT_ID=<clientId>
-VITE_REDIRECTURI=http://localhost:5173/
+CLIENT_ID=<clientId>
+REDIRECT_URI=http://localhost:8760
 ```
 
-6. Run `npm i && npm run dev`
+Run `npm i && npm run dev`
+
+### Local build
+
+Add `.env` in project path
+
+```env
+CLIENT_ID=<clientId>
+REDIRECT_URI=<redirectUri>
+```
+
+Run `npm i && npm run build`
 
 ## License
 
