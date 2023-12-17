@@ -4,13 +4,18 @@
     "noImplicitAny": true,
     "moduleResolution": "Node",
     "target": "es5",
-    "allowJs": true,
-    "baseUrl": "./",
+    "allowJs": false,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
   },
   "include": [
     "**/*.ts",

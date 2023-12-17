@@ -5,6 +5,8 @@
     "rename": "Rename",
     "remove": "Remove",
     "delete": "Delete",
+    "clear": "Clear",
+    "calculate": "Calculate",
     "more": "More",
     "about": "About",
     "openSourceDependencies": "Open source dependencies"
@@ -13,7 +15,7 @@
     "account": "Account",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "signInAlert": "Please sign in to see your files"
+    "signInAlert": "Please sign in to your Microsoft account to view your files"
   },
   "playlist": {
     "newPlaylist": "New Playlist",
@@ -28,5 +30,22 @@
     "home": "Home",
     "history": "History",
     "setting": "Setting"
+  },
+  "data": {
+    "data": "Data",
+    "metaDataCache": "Local MetaData Cache"
+  },
+  "files": {
+    "sortBy": {
+      "name": "Name",
+      "size": "Size",
+      "lastModified": "Last Modified"
+    },
+    "orderBy": {
+      "asc": "Ascending",
+      "desc": "Descending"
+    },
+    "foldersFirst": "Folders first",
+    "mediaOnly": "Media only"
   }
 }
