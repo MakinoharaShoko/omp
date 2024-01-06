@@ -4,40 +4,47 @@ import useFilesData from '../../hooks/graph/useFilesData'
 import BreadcrumbNav from './BreadcrumbNav'
 import CommonList from '../../components/CommonList/CommonList'
 import Loading from '../Loading'
-import { checkFileType, filePathConvert } from '../../utils'
+import { checkFileType, pathConvert } from '../../utils'
 import { File, Thumbnail } from '../../types/file'
 import Grid from '@mui/material/Unstable_Grid2/Grid2'
 import FilterMenu from './FilterMenu'
 import PictureView from '../PictureView/PictureView'
+import { Divider } from '@mui/material'
+import { useRef } from 'react'
 
 const Files = () => {
 
   const [
     folderTree,
+    display,
     sortBy,
     orderBy,
     foldersFirst,
     mediaOnly,
+    updateFolderTree,
   ] = useUiStore(
     (state) => [
       state.folderTree,
+      state.display,
       state.sortBy,
       state.orderBy,
       state.foldersFirst,
       state.mediaOnly,
+      state.updateFolderTree,
     ]
   )
 
   const { getFilesData } = useFilesData()
 
-  const fileListFetcher = async (path: string) => {
+  const fileListFetcher = async (path: string): Promise<File[]> => {
     interface ResItem {
       name: string;
       size: number;
       lastModifiedDateTime: string;
       id: string;
       thumbnails: Thumbnail[];
-      folder: { childCount: number, view: { sortBy: string, sortOrder: string, viewType: string } };
+      '@microsoft.graph.downloadUrl'?: string;
+      folder?: { childCount: number, view: { sortBy: string, sortOrder: string, viewType: string } };
     }
     const res: ResItem[] = await getFilesData(path)
 
@@ -51,11 +58,13 @@ const Files = () => {
           lastModifiedDateTime: item.lastModifiedDateTime,
           id: item.id,
           thumbnails: item.thumbnails,
+          url: item['@microsoft.graph.downloadUrl'],
         }
       })
   }
 
-  const { data: fileListData, error: fileListError, isLoading: fileListIsLoading } = useSWR<File[], Error>(filePathConvert(folderTree), fileListFetcher, { revalidateOnFocus: false })
+  const { data: fileListData, error: fileListError, isLoading: fileListIsLoading } =
+    useSWR<File[], Error>(pathConvert(folderTree), fileListFetcher, { revalidateOnFocus: false })
 
   const filteredFileList = (!fileListData)
     ? []
@@ -93,30 +102,52 @@ const Files = () => {
       } else return 0
     })
 
+  const scrollFilePathRef = useRef<string[] | null>(null)
+
+  const handleListNavClick = (index: number) => {
+    if (index < folderTree.length - 1) {
+      scrollFilePathRef.current = folderTree.slice(0, index + 2)
+      updateFolderTree(folderTree.slice(0, index + 1))
+    }
+  }
+
   return (
-    <div>
+    <Grid container
+      sx={{
+        height: '100%',
+        overflow: 'auto',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        flexWrap: 'nowrap',
+      }}>
       <Grid container
+        xs={12}
         justifyContent='space-between'
         alignItems='center'
         wrap='nowrap'
       >
         <Grid>
-          <BreadcrumbNav />
+          <BreadcrumbNav handleListNavClick={handleListNavClick} />
         </Grid>
         <Grid xs={'auto'} paddingRight={2}>
           <FilterMenu />
         </Grid>
       </Grid>
-      {
-        (fileListIsLoading || !fileListData || !sortedFileList || fileListError)
-          ? <Loading />
-          : <CommonList
-            listData={sortedFileList}
-            multiColumn
-          />
-      }
+      <Divider />
+      <Grid xs={12} sx={{ flexGrow: 1, overflow: 'auto' }}>
+        {
+          (fileListIsLoading || !fileListData || !sortedFileList || fileListError)
+            ? <Loading />
+            : <CommonList
+              display={display}
+              listData={sortedFileList}
+              listType='files'
+              scrollFilePath={scrollFilePathRef.current || undefined}
+            />
+        }
+      </Grid>
       <PictureView />
-    </div>
+    </Grid>
   )
 }
 

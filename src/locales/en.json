@@ -15,10 +15,11 @@
     "account": "Account",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "signInAlert": "Please sign in to your Microsoft account to view your files"
+    "signInAlert": "Please use Microsoft account authorization to log in"
   },
   "playlist": {
     "newPlaylist": "New Playlist",
+    "playAll": "Play all",
     "shuffleAll": "Shuffle all",
     "addPlaylist": "Add playlist",
     "addToPlaylist": "Add to playlist",
@@ -27,7 +28,7 @@
     "playlistWillBeDeleted": "The playlist will be deleted"
   },
   "nav": {
-    "home": "Home",
+    "files": "Files",
     "history": "History",
     "setting": "Setting"
   },
@@ -35,7 +36,20 @@
     "data": "Data",
     "metaDataCache": "Local MetaData Cache"
   },
+  "customize": {
+    "customize": "Customize",
+    "colorMode": "Color Mode",
+    "auto": "Auto",
+    "light": "Light",
+    "dark": "Dark",
+    "CoverThemeColor": "Use the album cover theme color"
+  },
   "files": {
+    "display": {
+      "list": "List",
+      "multicolumnList": "Multicolumn list",
+      "grid": "Grid"
+    },
     "sortBy": {
       "name": "Name",
       "size": "Size",
@@ -46,6 +60,7 @@
       "desc": "Descending"
     },
     "foldersFirst": "Folders first",
-    "mediaOnly": "Media only"
+    "mediaOnly": "Media only",
+    "hdThumbnails": "HD thumbnails"
   }
 }

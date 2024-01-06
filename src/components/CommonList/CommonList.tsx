@@ -1,40 +1,63 @@
-import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Avatar, IconButton, ListItem, ListItemAvatar, ListItemButton, ListItemIcon, ListItemText } from '@mui/material'
+import { useState, useEffect, Key, CSSProperties, useRef } from 'react'
 import Grid from '@mui/material/Unstable_Grid2'
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
-import MusicNoteIcon from '@mui/icons-material/MusicNote'
-import MovieIcon from '@mui/icons-material/Movie'
-import MoreVertOutlined from '@mui/icons-material/MoreVertOutlined'
-import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
-import InsertPhotoOutlinedIcon from '@mui/icons-material/InsertPhotoOutlined'
 import usePlayQueueStore from '../../store/usePlayQueueStore'
 import usePlayerStore from '../../store/usePlayerStore'
 import useUiStore from '../../store/useUiStore'
 import usePictureStore from '@/store/usePictureStore'
-import { checkFileType, fileSizeConvert, shufflePlayQueue } from '../../utils'
+import { checkFileType, pathConvert, shufflePlayQueue } from '../../utils'
 import CommonMenu from './CommonMenu'
-import useTheme from '../../hooks/ui/useTheme'
 import { PlayQueueItem } from '../../types/playQueue'
 import { File } from '../../types/file'
+import CommonListItem from './CommonListItem'
+import { Box, Fab, List, useMediaQuery, useTheme } from '@mui/material'
+import { AutoSizer, List as VirtualList } from 'react-virtualized'
+import CommonListItemCard from './CommonListItemCard'
+import { useTranslation } from 'react-i18next'
+import ShuffleRoundedIcon from '@mui/icons-material/ShuffleRounded'
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
+import { useNavigate } from 'react-router-dom'
 
 const CommonList = (
-  { listData, multiColumn, handleClickRemove }
-    : { listData?: File[] | PlayQueueItem[], multiColumn?: boolean, handleClickRemove?: (filePathArray: string[][]) => void }) => {
+  {
+    listData,
+    listType,
+    display = 'list',
+    scrollFilePath,
+    activeFilePath,
+    func,
+  }: {
+    listData?: File[] | PlayQueueItem[],
+    listType: 'files' | 'playlist' | 'playQueue',
+    display?: 'list' | 'multicolumnList' | 'grid',
+    scrollFilePath?: File['filePath'],
+    activeFilePath?: File['filePath'],
+    func?: {
+      handleClickRemove?: (filePathArray: string[][]) => void,
+    },
+  }) => {
 
   const { t } = useTranslation()
-  const { styles } = useTheme()
+  const navigate = useNavigate()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [currentFile, setCurrentFile] = useState<null | File>(null)
 
-  const [folderTree, shuffle, updateVideoViewIsShow, updateFolderTree, updateShuffle] = useUiStore(
-    (state) => [state.folderTree, state.shuffle, state.updateVideoViewIsShow, state.updateFolderTree, state.updateShuffle])
+  const [
+    shuffle,
+    updateVideoViewIsShow,
+    updateFolderTree,
+    updateShuffle
+  ] = useUiStore(
+    (state) => [
+      state.shuffle,
+      state.updateVideoViewIsShow,
+      state.updateFolderTree,
+      state.updateShuffle,
+    ])
 
-  const [currentIndex, updateType, updatePlayQueue, updateCurrentIndex] = usePlayQueueStore(
-    (state) => [state.currentIndex, state.updateType, state.updatePlayQueue, state.updateCurrentIndex])
+  const [updateType, updatePlayQueue, updateCurrentIndex] = usePlayQueueStore(
+    (state) => [state.updateType, state.updatePlayQueue, state.updateCurrentIndex])
 
   const [updatePlayStatu] = usePlayerStore(state => [state.updatePlayStatu])
 
@@ -46,16 +69,6 @@ const CommonList = (
       state.updatePictureList,
       state.updateCurrentPicture,
     ]
-  )
-
-  const isPlayQueueView = listData?.some((item) => typeof (item as PlayQueueItem).index === 'number')
-
-  // 打开播放队列时滚动到当前播放文件
-  useEffect(() => {
-    isPlayQueueView && document.getElementById('playing-item')?.scrollIntoView({ behavior: 'auto', block: 'center' })
-  },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
   )
 
   const handleClickMenu = (event: React.MouseEvent<HTMLElement>, currentFile: File) => {
@@ -70,7 +83,9 @@ const CommonList = (
       const currentFile = listData.find(item => item.filePath === filePath)
 
       if (currentFile && currentFile.fileType === 'folder') {
-        updateFolderTree([...folderTree, currentFile.fileName])
+        updateFolderTree(currentFile.filePath)
+        if (listType === 'playlist')
+          navigate('/')
       }
 
       if (currentFile && currentFile.fileType === 'picture') {
@@ -108,11 +123,18 @@ const CommonList = (
     updateCurrentIndex(index)
   }
 
+  const handleClickPlayAll = () => {
+    if (listData) {
+      const list = listData.filter((item) => checkFileType(item.fileName) === 'audio')
+      handleClickItem(list[0])
+    }
+  }
+
   // 点击随机播放全部
   const handleClickShuffleAll = () => {
     if (listData) {
       const list = listData
-        .filter((item) => checkFileType(item.fileName) === 'audio')
+        .filter((item) => item.fileType === 'audio')
         .map((item, index) => { return { index, ...item } })
       if (!shuffle)
         updateShuffle(true)
@@ -124,8 +146,224 @@ const CommonList = (
     }
   }
 
+  const handleClickItem = (item: PlayQueueItem | File) => {
+    if (listType === 'playQueue')
+      handleClickPlayQueueItem((item as PlayQueueItem).index)
+    else {
+      handleClickListItem(item.filePath)
+    }
+  }
+
+  const theme = useTheme()
+  const xs = useMediaQuery(theme.breakpoints.up('xs'))
+  const sm = useMediaQuery(theme.breakpoints.up('sm'))
+  const md = useMediaQuery(theme.breakpoints.up('md'))
+  const lg = useMediaQuery(theme.breakpoints.up('lg'))
+  const xl = useMediaQuery(theme.breakpoints.up('xl'))
+
+  const getGridCols = (): number => {
+    if (xl) return 6
+    if (lg) return 5
+    if (md) return 4
+    if (sm) return 3
+    if (xs) return 2
+    return 2
+  }
+
+  const getListCols = (): number => {
+    if (xl) return 3
+    if (lg) return 3
+    if (md) return 2
+    if (sm) return 1
+    if (xs) return 1
+    return 1
+  }
+
+  const gridCols = getGridCols()
+  const listCols = (display === 'multicolumnList') ? getListCols() : 1
+
+  const gridRenderer = ({ key, index, style }: { key: Key, index: number, style: CSSProperties }) => {
+    return (
+      listData
+      &&
+      <Grid container key={key} style={style}>
+        {
+          [...Array(gridCols)].map((_, i) => {
+            const item = listData[index * gridCols + i]
+            return (
+              item
+              &&
+              <Grid key={item.fileName} xs={12 / gridCols} sx={{ aspectRatio: '4/5', overflow: 'hidden' }}>
+                <CommonListItemCard
+                  active={activeFilePath ? pathConvert(activeFilePath) === pathConvert(item.filePath) : false}
+                  item={item}
+                  handleClickItem={handleClickItem}
+                  handleClickMenu={handleClickMenu}
+                />
+              </Grid>
+            )
+          })
+        }
+      </Grid>
+    )
+  }
+
+  const rowRenderer = ({ key, index, style }: { key: Key, index: number, style: CSSProperties }) => {
+    return (
+      listData
+      &&
+      <Grid container key={key} style={style}>
+        {
+          [...Array(listCols)].map((_, i) => {
+            const item = listData[index * listCols + i]
+            return (
+              item
+              &&
+              <Grid key={item.fileName} xs={12 / listCols}>
+                <CommonListItem
+                  active={activeFilePath ? pathConvert(activeFilePath) === pathConvert(item.filePath) : false}
+                  item={item}
+                  handleClickItem={handleClickItem}
+                  handleClickMenu={handleClickMenu}
+                />
+              </Grid>
+            )
+          })
+        }
+      </Grid>
+    )
+  }
+
+  const listRef = useRef<VirtualList | null>(null)
+  const updateListRowHeight = () => listRef.current && listRef.current.recomputeRowHeights()
+
+  // 打开播放队列时滚动到当前播放文件
+  useEffect(
+    () => {
+      if (listType === 'playQueue' && listRef.current && scrollFilePath) {
+        const index = listData?.findIndex((item) => pathConvert(scrollFilePath) === pathConvert(item.filePath))
+        setTimeout(() => listRef.current?.scrollToRow(index), 100)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
+
+  // 滚动到之前点击过的文件夹
+  useEffect(
+    () => {
+      if (listType === 'files' && listRef.current && scrollFilePath) {
+        let index = listData?.findIndex((item) => pathConvert(scrollFilePath) === pathConvert(item.filePath))
+        if (index && display === 'grid')
+          index = Math.ceil(index / gridCols) - 1
+        if (index && (display === 'list' || display === 'multicolumnList'))
+          index = Math.ceil(index / listCols) - 1
+        listRef.current?.scrollToRow(index)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scrollFilePath, gridCols, listCols]
+  )
+
+  const fabDisplay = listData && listData.length !== 0 && listData.find((item) => item.fileType === 'audio') && listType !== 'playQueue'
+
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const fabRef = useRef<HTMLDivElement | null>(null)
+  const touchStartYRef = useRef(0)
+  useEffect(() => {
+    const scroll = scrollRef.current
+    const fab = fabRef.current
+    if (scroll && fab) {
+      const onWheel = (e: WheelEvent) => {
+        if (e.deltaY > 0)
+          fab.style.visibility = 'hidden'
+        else
+          fab.style.visibility = 'visible'
+      }
+      const onTouchStart = (e: TouchEvent) => {
+        touchStartYRef.current = (e.touches[0].clientY)
+      }
+      const onTouchMove = (e: TouchEvent) => {
+        if (e.touches[0].clientY > touchStartYRef.current) {
+          fab.style.visibility = 'visible'
+          touchStartYRef.current = (e.touches[0].clientY)
+        }
+        else {
+          fab.style.visibility = 'hidden'
+          touchStartYRef.current = (e.touches[0].clientY)
+        }
+
+      }
+      scroll.addEventListener('wheel', onWheel)
+      scroll.addEventListener('touchstart', onTouchStart)
+      scroll.addEventListener('touchmove', onTouchMove)
+      return () => {
+        scroll.removeEventListener('wheel', onWheel)
+        scroll.removeEventListener('touchstart', onTouchStart)
+        scroll.removeEventListener('touchmove', onTouchMove)
+      }
+    }
+  }, [])
+
   return (
-    <div>
+    listData
+    &&
+    <Box sx={{ height: '100%', width: '100%' }} >
+
+      {/* 文件列表 */}
+      <Grid container sx={{ flexDirection: 'column', flexWrap: 'nowrap', height: '100%' }}>
+        <Grid
+          xs={12}
+          sx={{
+            flexGrow: 1,
+            overflow: 'hidden',
+          }}
+          ref={scrollRef}
+        >
+
+          {
+            display === 'grid'
+            &&
+            <AutoSizer onResize={() => updateListRowHeight()}>
+              {
+                ({ height, width }) =>
+                  <List>
+                    <VirtualList
+                      ref={(ref => (listRef.current = ref))}
+                      height={height - 8}
+                      width={width - 8}
+                      rowCount={Math.ceil(listData.length / gridCols)}
+                      rowHeight={width / gridCols / 4 * 5}
+                      rowRenderer={gridRenderer}
+                      scrollToAlignment={'center'}
+                    />
+                  </List>
+              }
+            </AutoSizer>
+          }
+          {
+            (display === 'list' || display === 'multicolumnList')
+            &&
+            <AutoSizer onResize={() => updateListRowHeight()}>
+              {
+                ({ height, width }) =>
+                  <List>
+                    <VirtualList
+                      ref={(ref => (listRef.current = ref))}
+                      height={height - 8}
+                      width={width - 8}
+                      rowCount={Math.ceil(listData.length / listCols)}
+                      rowHeight={72}
+                      rowRenderer={rowRenderer}
+                      scrollToAlignment={'center'}
+                    />
+                  </List>
+              }
+            </AutoSizer>
+          }
+        </Grid>
+      </Grid>
+
       {/* 菜单 */}
       <CommonMenu
         anchorEl={anchorEl}
@@ -135,147 +373,37 @@ const CommonList = (
         setAnchorEl={setAnchorEl}
         setMenuOpen={setMenuOpen}
         setDialogOpen={setDialogOpen}
-        handleClickRemove={handleClickRemove}
-        isPlayQueueView={isPlayQueueView}
+        handleClickRemove={func?.handleClickRemove}
+        listType={listType}
       />
 
-      {/* 文件列表 */}
-      <Grid container>
-        {
-          (
-            listData &&
-            listData.length !== 0 &&
-            listData.find((item) => item.fileType === 'audio') &&
-            !isPlayQueueView
-          ) &&
-          <Grid xs={12}>
-            <ListItem
-              disablePadding
-              sx={{
-                '& .MuiListItemButton-root': {
-                  paddingLeft: 4,
-                },
-                '& .MuiListItemIcon-root': {
-                  minWidth: 0,
-                  marginRight: 3,
-                },
-              }}
-            >
-              <ListItemButton onClick={handleClickShuffleAll}>
-                <ListItemIcon>
-                  <ShuffleOutlinedIcon />
-                </ListItemIcon>
-                <ListItemText primary={t('playlist.shuffleAll')} />
-              </ListItemButton>
-            </ListItem>
-          </Grid>
-        }
-        {
-          listData?.map((item, index) =>
-            <Grid key={index} lg={multiColumn ? 4 : 12} md={multiColumn ? 6 : 12} sm={12} xs={12} p={0} >
-              <ListItem
-                disablePadding
-                id={(item as PlayQueueItem).index === currentIndex ? 'playing-item' : ''}
-                sx={{
-                  '& .MuiListItemButton-root': {
-                    paddingLeft: 3,
-                    // paddingRight: 9,
-                  },
-                  '& .MuiListItemSecondaryAction-root': {
-                    right: '4px',
-                  }
-                }}
-                secondaryAction={
-                  (item.fileType === 'audio' || item.fileType === 'video') &&
-                  <div>
-                    <IconButton
-                      aria-label={t('common.more')}
-                      onClick={(event) =>
-                        handleClickMenu(event,
-                          {
-                            fileName: item.fileName,
-                            filePath: item.filePath,
-                            fileSize: item.fileSize,
-                            fileType: item.fileType,
-                            id: item.id,
-                          }
-                        )}
-                    >
-                      <MoreVertOutlined />
-                    </IconButton>
-                  </div>
-                }
-              >
-                <ListItemButton
-                  onClick={
-                    () => ((item as PlayQueueItem).index)
-                      ? handleClickPlayQueueItem(index)
-                      : handleClickListItem(item.filePath)
-                  }
-                  sx={{
-                    '.MuiListItemText-root': {
-                      color: ((item as PlayQueueItem).index === currentIndex)
-                        ? styles.color.primary
-                        : ''
-                    },
-                    '.MuiListItemText-secondary': {
-                      color: ((item as PlayQueueItem).index === currentIndex)
-                        ? styles.color.primary
-                        : ''
-                    },
-                  }}
-                >
-                  {
-                    (item.thumbnails && item.thumbnails[0])
-                      ? <ListItemAvatar>
-                        <Avatar variant="square" alt={item.fileName} src={item.thumbnails[0].medium.url} />
-                      </ListItemAvatar>
-                      : <ListItemAvatar>
-                        <Avatar variant="square">
-                          {item.fileType === 'folder' && <FolderOutlinedIcon />}
-                          {item.fileType === 'audio' && <MusicNoteIcon />}
-                          {item.fileType === 'video' && <MovieIcon />}
-                          {item.fileType === 'picture' && <InsertPhotoOutlinedIcon />}
-                          {item.fileType === 'other' && <InsertDriveFileOutlinedIcon />}
-                        </Avatar>
-                      </ListItemAvatar>
-                  }
+      {
+        fabDisplay &&
+        <Box
+          ref={fabRef}
+          sx={{
+            position: 'absolute',
+            bottom: '2rem',
+            right: '2rem',
+            zIndex: 1,
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Fab size='small' onClick={() => handleClickShuffleAll()}>
+            <ShuffleRoundedIcon />
+          </Fab>
+          <Fab variant='extended' color='primary' onClick={() => handleClickPlayAll()}>
+            <PlayArrowRoundedIcon />
+            {t('playlist.playAll')}
+          </Fab>
+        </Box>
+      }
 
-                  <ListItemText
-                    primary={item.fileName}
-                    secondary={
-                      `${item.lastModifiedDateTime
-                        ? `${new Date(item.lastModifiedDateTime).toLocaleString(undefined, {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: 'numeric',
-                        })} | `
-                        : ''}${fileSizeConvert(item.fileSize)}`}
-                    primaryTypographyProps={{
-                      style: {
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }
-                    }}
-                    secondaryTypographyProps={{
-                      style: {
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        fontWeight: 'lighter',
-                      }
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            </Grid>
-          )
-        }
-      </Grid>
-    </div>
+    </Box>
   )
 }
 

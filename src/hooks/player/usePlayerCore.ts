@@ -5,7 +5,7 @@ import useLocalMetaDataStore from '@/store/useLocalMetaDataStore'
 import usePlayQueueStore from '@/store/usePlayQueueStore'
 import usePlayerStore from '@/store/usePlayerStore'
 import useUiStore from '@/store/useUiStore'
-import { filePathConvert, shufflePlayQueue } from '@/utils'
+import { pathConvert } from '@/utils'
 import useFilesData from '../graph/useFilesData'
 
 const usePlayerCore = (player: HTMLVideoElement | null) => {
@@ -17,14 +17,12 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
     playQueue,
     currentIndex,
     updateCurrentIndex,
-    updatePlayQueue,
   ] = usePlayQueueStore(
     (state) => [
       state.type,
       state.playQueue,
       state.currentIndex,
       state.updateCurrentIndex,
-      state.updatePlayQueue
     ]
   )
 
@@ -59,11 +57,9 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
   )
 
   const [
-    shuffle,
     repeat,
   ] = useUiStore(
     (state) => [
-      state.shuffle,
       state.repeat,
     ]
   )
@@ -80,7 +76,7 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
       }
       if (playQueue !== null && playQueue.length !== 0) {
         try {
-          getFileData(filePathConvert(playQueue.filter(item => item.index === currentIndex)[0].filePath)).then((res) => {
+          getFileData(pathConvert(playQueue.filter(item => item.index === currentIndex)[0].filePath)).then((res) => {
             setUrl(res['@microsoft.graph.downloadUrl'])
             updateIsLoading(true)
           })
@@ -144,21 +140,6 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
     [playStatu, isLoading]
   )
 
-  // 随机
-  useEffect(
-    () => {
-      if (shuffle && playQueue) {
-        const randomPlayQueue = shufflePlayQueue(playQueue, currentIndex)
-        updatePlayQueue(randomPlayQueue)
-      }
-      if (!shuffle && playQueue) {
-        updatePlayQueue([...playQueue].sort((a, b) => a.index - b.index))
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shuffle]
-  )
-
   // 设置当前播放进度
   useEffect(
     () => {
@@ -174,23 +155,17 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
   const onEnded = () => {
     if (playQueue) {
       const next = playQueue[(playQueue.findIndex(item => item.index === currentIndex) + 1)]
+      const isPlayQueueEnd = currentIndex + 1 === playQueue?.length
       if (repeat === 'one') {
         player?.play()
-      } else if (currentIndex + 1 === playQueue?.length || !next) { // 播放到队列结束时
-        if (repeat === 'all')
-          if (shuffle)
-            updateCurrentIndex(playQueue[playQueue.findIndex(item => item.index === playQueue[0].index)].index)
-          else
-            updateCurrentIndex(0)
-        else {
-          updatePlayStatu('paused')
-          updateCurrentTime(0)
-        }
-      } else if (repeat === 'off' || repeat === 'all')
-        if (shuffle)
+      } else if (repeat === 'off' || repeat === 'all') {
+        if (isPlayQueueEnd || !next) {
+          if (repeat === 'off')
+            updatePlayStatu('paused')
+          updateCurrentIndex(playQueue[0].index)
+        } else
           updateCurrentIndex(next.index)
-        else
-          updateCurrentIndex(currentIndex + 1)
+      }
     }
   }
 
@@ -205,6 +180,7 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
 
           if (!metaData) {
             const currentMetaData = playQueue.filter(item => item.index === currentIndex)[0]
+            updateCover('./cover.svg')
             updateCurrentMetaData(
               {
                 title: currentMetaData?.fileName || 'Not playing',
@@ -212,7 +188,6 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
                 path: currentMetaData?.filePath,
               }
             )
-            updateCover('./cover.png')
           }
 
           if (
@@ -222,7 +197,7 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
             &&
             metaData.path
             &&
-            filePathConvert(metaData.path) === filePathConvert(playQueue.filter(item => item.index === currentIndex)[0].filePath)
+            pathConvert(metaData.path) === pathConvert(playQueue.filter(item => item.index === currentIndex)[0].filePath)
           ) {
             console.log('Update current metaData: ', metaData.title)
             updateCurrentMetaData(metaData)
@@ -234,6 +209,8 @@ const usePlayerCore = (player: HTMLVideoElement | null) => {
               else if (cover) {
                 updateCover(URL.createObjectURL(new Blob([new Uint8Array(cover as ArrayBufferLike)], { type: 'image/png' })))
               }
+            } else {
+              updateCover('./cover.svg')
             }
           }
         }

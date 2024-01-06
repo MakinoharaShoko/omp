@@ -2,13 +2,13 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import shortUUID from 'short-uuid'
 import { Menu, MenuItem, ListItemText, Button, Dialog, DialogActions, DialogTitle, List, ListItem, ListItemButton, ListItemIcon } from '@mui/material'
-import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined'
-import ListOutlinedIcon from '@mui/icons-material/ListOutlined'
+import PlaylistAddRoundedIcon from '@mui/icons-material/PlaylistAddRounded'
+import ListRoundedIcon from '@mui/icons-material/ListRounded'
 import { shallow } from 'zustand/shallow'
 import usePlayQueueStore from '../../store/usePlayQueueStore'
 import usePlaylistsStore from '../../store/usePlaylistsStore'
 import useUiStore from '../../store/useUiStore'
-import { filePathConvert } from '../../utils'
+import { pathConvert } from '../../utils'
 import { File } from '../../types/file'
 
 const CommonMenu = (
@@ -21,7 +21,7 @@ const CommonMenu = (
     setMenuOpen,
     setDialogOpen,
     handleClickRemove,
-    isPlayQueueView,
+    listType,
   }
     :
     {
@@ -33,7 +33,7 @@ const CommonMenu = (
       setMenuOpen: (menuOpen: boolean) => void,
       setDialogOpen: (dialogOpen: boolean) => void,
       handleClickRemove?: (filePathArray: string[][]) => void,
-      isPlayQueueView?: boolean,
+      listType: 'files' | 'playlist' | 'playQueue',
     }
 ) => {
 
@@ -109,7 +109,7 @@ const CommonMenu = (
         </MenuItem>
         {  // 当前选择文件不在播放队列中时显示
           (currentFile && !playQueue?.find((file) => {
-            return filePathConvert(file.filePath) === filePathConvert(currentFile?.filePath)
+            return pathConvert(file.filePath) === pathConvert(currentFile?.filePath)
           })) &&
           <MenuItem onClick={handleClickAddToPlayQueue}>
             <ListItemText primary={t('playlist.addToPlayQueue')} />
@@ -127,7 +127,7 @@ const CommonMenu = (
           (
             handleClickRemove
             && currentFile
-            && !(isPlayQueueView && currentFile?.filePath === playQueue?.find((item) => item.index === currentIndex)?.filePath)
+            && !(listType === 'playQueue' && currentFile?.filePath === playQueue?.find((item) => item.index === currentIndex)?.filePath)
           ) &&
           <MenuItem
             onClick={() => {
@@ -158,17 +158,9 @@ const CommonMenu = (
                 onClick={() => addToPlaylist(item.id)}
               >
                 <ListItemIcon>
-                  <ListOutlinedIcon />
+                  <ListRoundedIcon />
                 </ListItemIcon>
-                <ListItemText
-                  primary={item.title}
-                  primaryTypographyProps={{
-                    style: {
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }
-                  }} />
+                <ListItemText primary={item.title} />
               </ListItemButton>
             </ListItem>
           )}
@@ -178,7 +170,7 @@ const CommonMenu = (
               onClick={addNewPlaylist}
             >
               <ListItemIcon>
-                <PlaylistAddOutlinedIcon />
+                <PlaylistAddRoundedIcon />
               </ListItemIcon>
               <ListItemText primary={t('playlist.addPlaylist')} />
             </ListItemButton>

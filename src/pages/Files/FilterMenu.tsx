@@ -1,5 +1,5 @@
 import useUiStore from '@/store/useUiStore'
-import { SortOutlined } from '@mui/icons-material'
+import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded'
 import { Checkbox, Divider, FormControlLabel, FormGroup, IconButton, Menu, Radio, RadioGroup } from '@mui/material'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,24 +15,32 @@ const FilterMenu = () => {
   }
 
   const [
+    display,
     sortBy,
     orderBy,
     foldersFirst,
     mediaOnly,
+    hdThumbnails,
+    updateDisplay,
     updateSortBy,
     updateOrderBy,
     updateFoldersFirst,
     updateMediaOnly,
+    updateHDThumbnails
   ] = useUiStore(
     (state) => [
+      state.display,
       state.sortBy,
       state.orderBy,
       state.foldersFirst,
       state.mediaOnly,
+      state.hdThumbnails,
+      state.updateDisplay,
       state.updateSortBy,
       state.updateOrderBy,
       state.updateFoldersFirst,
       state.updateMediaOnly,
+      state.updateHDThumbnails,
     ]
   )
 
@@ -47,7 +55,7 @@ const FilterMenu = () => {
         aria-expanded={open ? 'true' : undefined}
         onClick={handleClick}
       >
-        <SortOutlined />
+        <FilterListRoundedIcon />
       </IconButton>
 
       <Menu
@@ -60,6 +68,20 @@ const FilterMenu = () => {
         }}
         sx={{ userSelect: 'none' }}
       >
+
+        <RadioGroup
+          aria-labelledby="display-radio-buttons-group-label"
+          defaultValue={display}
+          name='display-radio-buttons-group'
+          sx={{ paddingLeft: 2 }}
+        >
+          <FormControlLabel value={'list'} control={<Radio />} label={t('files.display.list')} onChange={() => updateDisplay('list')} />
+          <FormControlLabel value={'multicolumnList'} control={<Radio />} label={t('files.display.multicolumnList')} onChange={() => updateDisplay('multicolumnList')} />
+          <FormControlLabel value={'grid'} control={<Radio />} label={t('files.display.grid')} onChange={() => updateDisplay('grid')} />
+        </RadioGroup>
+
+        <Divider />
+
         <RadioGroup
           aria-labelledby="sort-radio-buttons-group-label"
           defaultValue={sortBy}
@@ -90,6 +112,11 @@ const FilterMenu = () => {
         >
           <FormControlLabel control={<Checkbox checked={foldersFirst} />} label={t('files.foldersFirst')} onChange={() => updateFoldersFirst(!foldersFirst)} />
           <FormControlLabel control={<Checkbox checked={mediaOnly} />} label={t('files.mediaOnly')} onChange={() => updateMediaOnly(!mediaOnly)} />
+          {
+            display === 'grid' &&
+            <FormControlLabel control={<Checkbox checked={hdThumbnails} />} label={t('files.hdThumbnails')} onChange={() => updateHDThumbnails(!hdThumbnails)} />
+          }
+
         </FormGroup>
 
       </Menu>

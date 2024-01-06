@@ -38,7 +38,7 @@ export const shufflePlayQueue = (playQueue: PlayQueueItem[], currentIndex?: Play
     const j = Math.floor(Math.random() * (i + 1));
     [randomPlayQueue[i], randomPlayQueue[j]] = [randomPlayQueue[j], randomPlayQueue[i]]
   }
-  if (currentIndex)
+  if (currentIndex !== undefined)
     return randomPlayQueue.filter(item => item.index === currentIndex).concat(randomPlayQueue.filter(item => item.index !== currentIndex))
   else return randomPlayQueue
 }
@@ -48,7 +48,7 @@ export const nowTime = () => {
   return `${dateTime.getFullYear}-${dateTime.getMonth}-${dateTime.getDay} ${dateTime.getHours}:${dateTime.getMinutes}`
 }
 
-export const fileSizeConvert = (fileSize: File['fileSize']) => {
+export const sizeConvert = (fileSize: File['fileSize']) => {
   return ((fileSize / 1024) < 1024)
     ? `${(fileSize / 1024).toFixed(2)} KB`
     : ((fileSize / 1024 / 1024) < 1024)
@@ -56,14 +56,14 @@ export const fileSizeConvert = (fileSize: File['fileSize']) => {
       : `${(fileSize / 1024 / 1024 / 1024).toFixed(2)} GB`
 }
 
-export const filePathConvert = (filePath: File['filePath']) => (filePath.join('/') === '/') ? '/' : filePath.slice(1).join('/')
+export const pathConvert = (filePath: File['filePath']) => (filePath.join('/') === '/') ? '/' : filePath.slice(1).join('/')
 
 /**
  * 根据 url 解析 json
  * @param url 
  * @returns 
  */
-const fetchJson = async (url: string) => {
+export const fetchJson = async (url: string) => {
   try {
     const response = await fetch(url)
     const json = response.json()
@@ -73,4 +73,20 @@ const fetchJson = async (url: string) => {
   }
 }
 
-export default fetchJson
+export const hexToRgba = (hex: string) => {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const a = hex.length > 7 ? parseInt(hex.slice(7, 9), 16) / 255 : 1
+  return [r, g, b, a]
+}
+
+export const blendHex = (colorHex1: string, colorHex2: string) => {
+  const colorRGBA1 = hexToRgba(colorHex1)
+  const colorRGBA2 = hexToRgba(colorHex2)
+  const red = colorRGBA1[0] * (1 - colorRGBA2[3]) + colorRGBA2[0] * colorRGBA2[3]
+  const green = colorRGBA1[1] * (1 - colorRGBA2[3]) + colorRGBA2[1] * colorRGBA2[3]
+  const blue = colorRGBA1[2] * (1 - colorRGBA2[3]) + colorRGBA2[2] * colorRGBA2[3]
+  const color = [Math.round(red), Math.round(green), Math.round(blue)]
+  return `rgb(${color.join(', ')})`
+}

@@ -4,13 +4,34 @@
   margin: 0;
 }
 
+html {
+  background-color: #f7f7f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background-color: #3b3b3b;
+  }
+}
+
 :root {
   color-scheme: light dark;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%
+  text-size-adjust: 100%;
+  font-family: Roboto, Helvetica, Arial, sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  background-color: #f7f7f7;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  background-color: #3b3b3b;
 }
 
 a {
@@ -35,4 +56,8 @@ a {
   .pt-titlebar-area-height {
     padding-top: env(titlebar-area-height, 32) !important;
   }
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb {
+  visibility: visible !important;
 }

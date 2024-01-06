@@ -1,6 +1,5 @@
-import { AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
-import { Outlet } from 'react-router-dom'
-import { Container, Divider, ThemeProvider, Box } from '@mui/material'
+import { Outlet, useLocation } from 'react-router-dom'
+import { Container, ThemeProvider, Paper } from '@mui/material'
 import Grid from '@mui/material/Unstable_Grid2'
 import NavBar from './pages/NavBar'
 import Player from './pages/Player/Player'
@@ -10,40 +9,108 @@ import useUser from './hooks/graph/useUser'
 import useTheme from './hooks/ui/useTheme'
 import useSync from './hooks/graph/useSync'
 import useThemeColor from './hooks/ui/useThemeColor'
-import SignIn from './pages/SignIn'
+import LogIn from './pages/LogIn'
+import useUiStore from './store/useUiStore'
+import { useSpring, animated } from '@react-spring/web'
+import { useMemo } from 'react'
 
 const App = () => {
-  const { theme } = useTheme()
-  const { accounts } = useUser()
-  useSync(accounts)
+  const theme = useTheme()
+  const { account } = useUser()
+  useSync()
   useThemeColor()
+
+  const [coverColor] = useUiStore((state) => [state.coverColor])
+  const [{ background }, api] = useSpring(
+    () => ({
+      background: `linear-gradient(45deg, ${coverColor}33, ${coverColor}15, ${coverColor}05, ${theme.palette.background.default})`,
+    })
+  )
+  useMemo(
+    () => api.start({
+      background: `linear-gradient(45deg, ${coverColor}33, ${coverColor}15, ${coverColor}05, ${theme.palette.background.default})`
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [coverColor, theme.palette.background.default]
+  )
+
+  const location = useLocation()
+  const needLogin = useMemo(
+    () => (['/', '/history'].includes(location.pathname)) && !account,
+    [location, account]
+  )
 
   return (
     <ThemeProvider theme={theme}>
-      <NavBar accounts={accounts} />
+      <animated.div
+        style={{
+          width: '100vw',
+          height: '100dvh',
+          background: background,
+        }}
+      >
+        <NavBar />
 
-      <AuthenticatedTemplate>
-        <Box sx={{ position: 'absolute', height: 'calc(100dvh - 6rem - env(titlebar-area-height, 3rem))', width: '100%', top: 'env(titlebar-area-height, 3rem)', }}>
-          <Container maxWidth="xl" disableGutters={true} sx={{ height: '100%' }}>
-            <MobileSideBar />
-            <Grid container flexDirection={'row'} height={'100%'}  >
-              <Grid xs={0} sm={3} lg={2} height={'100%'} sx={{ overflowY: 'auto', display: { xs: 'none', sm: 'block' }, }} pb={1} borderRight={`1px solid ${theme.palette.divider}`} borderLeft={`1px solid ${theme.palette.divider}`} >
-                <SideBar />
-                <Divider orientation="vertical" flexItem />
-              </Grid>
-              <Grid xs={12} sm={9} lg={10} pt={1} pb={3} height={'100%'} sx={{ overflowY: 'auto' }} borderRight={`1px solid ${theme.palette.divider}`} >
-                <Outlet />
-              </Grid>
+        <Container maxWidth="xl" disableGutters={true} sx={{ height: '100%' }}>
+          <MobileSideBar />
+          <Grid container>
+            <Grid
+              xs={0}
+              sm={3}
+              lg={2}
+              sx={{
+                overflowY: 'auto',
+                display: { xs: 'none', sm: 'block' },
+                padding: '0 0 0.5rem 0.5rem',
+                paddingTop: 'calc(env(titlebar-area-height, 3rem) + 0.5rem)',
+                height: 'calc(100dvh - 4.5rem - env(titlebar-area-height, 2rem))',
+              }}
+            >
+              <SideBar />
             </Grid>
-          </Container>
-        </Box>
+            <Grid
+              xs={12}
+              sm={9}
+              lg={10}
+              sx={{
+                padding: '0 0.5rem 0.5rem 0.5rem',
+                paddingTop: {
+                  xs: 'calc(env(titlebar-area-height, 3rem) + 0.5rem)',
+                  sm: 'calc(env(titlebar-area-height, 0rem) + 0.5rem)'
+                },
+                height: 'calc(100dvh - 4.5rem - env(titlebar-area-height, 2rem))',
+              }}
+            >
+              <Paper
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  overflowY: 'auto',
+                  backgroundColor: `${theme.palette.background.paper}99`,
+                  backdropFilter: 'blur(8px)',
+                  '& ::-webkit-scrollbar': {
+                    width: '12px',
+                    height: '12px',
+                  },
+                  '& ::-webkit-scrollbar-track': {
+                    backgroundColor: 'transparent',
+                  },
+                  '& ::-webkit-scrollbar-thumb': {
+                    background: theme.palette.primary.main,
+                    borderRadius: '16px',
+                    border: '3.5px solid transparent',
+                    backgroundClip: 'content-box',
+                  },
+                }}>
+                {needLogin ? <LogIn /> : <Outlet />}
+              </Paper>
+            </Grid>
+          </Grid>
+        </Container>
+
         <Player />
-      </AuthenticatedTemplate>
 
-      <UnauthenticatedTemplate>
-        <SignIn />
-      </UnauthenticatedTemplate>
-
+      </animated.div>
     </ThemeProvider>
   )
 }
