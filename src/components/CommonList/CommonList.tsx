@@ -258,7 +258,8 @@ const CommonList = (
           index = Math.ceil(index / gridCols) - 1
         if (index && (display === 'list' || display === 'multicolumnList'))
           index = Math.ceil(index / listCols) - 1
-        listRef.current?.scrollToRow(index)
+
+        index && index >= 0 && listRef.current?.scrollToRow(index)
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -308,7 +309,7 @@ const CommonList = (
   return (
     listData
     &&
-    <Box sx={{ height: '100%', width: '100%' }} >
+    <Box sx={{ height: '100%', width: '100%', position: 'relative' }} >
 
       {/* 文件列表 */}
       <Grid container sx={{ flexDirection: 'column', flexWrap: 'nowrap', height: '100%' }}>
@@ -385,7 +386,7 @@ const CommonList = (
             position: 'absolute',
             bottom: '2rem',
             right: '2rem',
-            zIndex: 1,
+            zIndex: 0,
             display: 'flex',
             flexDirection: 'row',
             justifyContent: 'center',
